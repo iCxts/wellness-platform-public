@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const notificationTypeEnum = pgEnum("notification_type", [
@@ -16,5 +16,6 @@ export const notifications = pgTable("notifications", {
     title: text("title").notNull(),
     body: text("body").notNull(),
     isRead: boolean("is_read").notNull().default(false),
+    metadata: jsonb("metadata"),
     createdAt: timestamp("created_at").notNull().defaultNow()
 });

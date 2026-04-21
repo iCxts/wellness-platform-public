@@ -12,6 +12,7 @@ export const users = pgTable("users", {
     role: userRoleEnum("role").notNull().default("member"),
     parqCleared: boolean("parq_cleared").notNull().default(false),
     fitnessInterests: text("fitness_interests").array(),
+    avatarUrl: text("avatar_url"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

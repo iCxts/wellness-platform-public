@@ -1,7 +1,7 @@
-import { eq, gte, count, inArray, and } from "drizzle-orm";
+import { eq, gte, lte, count, inArray, and, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { sessions, bookings, users } from "@wellness/db";
-import type { BookingWithUserResponse, CreateSessionInput, SessionResponse } from "@wellness/types";
+import type { BookingWithUserResponse, CreateSessionInput, SessionFocus, SessionLevel, SessionResponse } from "@wellness/types";
 import { enqueueNoShowTagger } from "../jobs/no-show-tagger.job.js";
 import { enqueueReminders } from "../jobs/reminder.job.js";
 
@@ -16,18 +16,38 @@ async function getSpotCounts(sessionIds: string[]): Promise<Record<string, numbe
     return Object.fromEntries(rows.map((r) => [r.sessionId, Number(r.count)]));
 }
 
-export async function listSessions(): Promise<SessionResponse[]> {
+export async function listSessions(filters?: {
+    focus?: string;
+    day?: string;
+}): Promise<SessionResponse[]> {
     const now = new Date();
+    const conditions = [gte(sessions.startsAt, now)];
+
+    if (filters?.focus) {
+        conditions.push(sql`${sessions.focus} @> ARRAY[${filters.focus}]::text[]`);
+    }
+
+    if (filters?.day) {
+        const start = new Date(`${filters.day}T00:00:00.000Z`);
+        const end = new Date(`${filters.day}T23:59:59.999Z`);
+        conditions.push(gte(sessions.startsAt, start), lte(sessions.startsAt, end));
+    }
+
     const rows = await db
         .select()
         .from(sessions)
-        .where(gte(sessions.startsAt, now));
+        .where(and(...conditions));
     const counts = await getSpotCounts(rows.map((r) => r.id));
 
     return rows.map((s) => ({
         id: s.id,
         title: s.title,
         type: s.type,
+        level: s.level,
+        focus: s.focus as SessionFocus[] | null,
+        description: s.description,
+        imageUrl: s.imageUrl,
+        roomName: s.roomName,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -52,6 +72,11 @@ export async function getSession(id: string): Promise<SessionResponse | null> {
         id: s.id,
         title: s.title,
         type: s.type,
+        level: s.level,
+        focus: s.focus as SessionFocus[] | null,
+        description: s.description,
+        imageUrl: s.imageUrl,
+        roomName: s.roomName,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -67,6 +92,10 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
         .values({
             title: input.title,
             type: input.type,
+            level: input.level ?? null,
+            focus: input.focus ?? null,
+            description: input.description ?? null,
+            roomName: input.roomName ?? null,
             trainerId: input.trainerId ?? null,
             zoneId: input.zoneId,
             startsAt: new Date(input.startsAt),
@@ -81,6 +110,11 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
         id: s.id,
         title: s.title,
         type: s.type,
+        level: s.level,
+        focus: s.focus as SessionFocus[] | null,
+        description: s.description,
+        imageUrl: s.imageUrl,
+        roomName: s.roomName,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -94,6 +128,10 @@ export async function updateSession(id: string, input: Partial<CreateSessionInpu
     const values: Record<string, unknown> = {};
     if (input.title !== undefined) values.title = input.title;
     if (input.type !== undefined) values.type = input.type;
+    if (input.level !== undefined) values.level = input.level;
+    if (input.focus !== undefined) values.focus = input.focus;
+    if (input.description !== undefined) values.description = input.description;
+    if (input.roomName !== undefined) values.roomName = input.roomName;
     if (input.trainerId !== undefined) values.trainerId = input.trainerId;
     if (input.zoneId !== undefined) values.zoneId = input.zoneId;
     if (input.startsAt !== undefined) values.startsAt = new Date(input.startsAt);
@@ -127,6 +165,11 @@ export async function deleteSession(id: string): Promise<void> {
     }
 
     await db.delete(sessions).where(eq(sessions.id, id));
+}
+
+export async function updateSessionImage(sessionId: string, imageUrl: string): Promise<SessionResponse | null> {
+    await db.update(sessions).set({ imageUrl }).where(eq(sessions.id, sessionId));
+    return getSession(sessionId);
 }
 
 export async function getSessionBookings(

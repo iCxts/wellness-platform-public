@@ -8,7 +8,8 @@ const notification = new Hono<{ Variables: { user: JwtPayload } }>();
 notification.use("/*", authMiddleware);
 
 notification.get("/me", async(c) => {
-    const data = await listNotifications(c.get("user").sub);
+    const unreadOnly = c.req.query("unread") === "true";
+    const data = await listNotifications(c.get("user").sub, unreadOnly);
     return c.json(data);
 });
 

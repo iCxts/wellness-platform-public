@@ -3,6 +3,7 @@ import { env } from "./env.js";
 import { db } from "./db/index.js";
 import { sql } from "drizzle-orm";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import authRoutes from "./routes/auth.js";
 import sessionRoutes from "./routes/sessions.js";
 import zoneRoutes from "./routes/zones.js";
@@ -11,11 +12,17 @@ import checkinRoutes from "./routes/checkin.js";
 import checkoutRoutes from "./routes/checkout.js";
 import notificationRoutes from "./routes/notifications.js";
 import progressRoutes from "./routes/progress.js";
+import usersRoutes from "./routes/users.js";
+import dashboardRoutes from "./routes/dashboard.js";
 import { startWorker } from "./jobs/worker.js";
 import { enqueueAbsenceChecker } from "./jobs/absence-checker.job.js";
 
 const app = new Hono();
 
+app.use("/avatars/*", serveStatic({ root: "./uploads" }));
+app.use("/sessions/*", serveStatic({ root: "./uploads" }));
+app.route("/users", usersRoutes);
+app.route("/dashboard", dashboardRoutes);
 app.route("/auth", authRoutes);
 app.route("/sessions", sessionRoutes);
 app.route("/zones", zoneRoutes);

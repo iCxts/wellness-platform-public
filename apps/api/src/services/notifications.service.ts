@@ -1,7 +1,7 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { notifications } from "@wellness/db";
-import type { NotificationResponse, NotificationType } from "@wellness/types";
+import type { NotificationResponse, NotificationType, NotificationMetadata } from "@wellness/types";
 
 function toResponse(n: typeof notifications.$inferSelect): NotificationResponse {
     return {
@@ -11,6 +11,7 @@ function toResponse(n: typeof notifications.$inferSelect): NotificationResponse 
         title: n.title,
         body: n.body,
         isRead: n.isRead,
+        metadata: (n.metadata as NotificationMetadata) ?? null,
         createdAt: n.createdAt.toISOString()
     };
 }
@@ -19,18 +20,22 @@ export async function createNotification(
     userId: string,
     type: NotificationType,
     title: string,
-    body: string
+    body: string,
+    metadata?: NotificationMetadata
 ): Promise<void> {
-    await db 
+    await db
         .insert(notifications)
-        .values({ userId, type, title, body });
+        .values({ userId, type, title, body, metadata: metadata ?? null });
 }
 
-export async function listNotifications(userId: string): Promise<NotificationResponse[]> {
-    const rows = await db 
+export async function listNotifications(userId: string, unreadOnly = false): Promise<NotificationResponse[]> {
+    const condition = unreadOnly
+        ? and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+        : eq(notifications.userId, userId);
+    const rows = await db
         .select()
         .from(notifications)
-        .where(eq(notifications.userId, userId))
+        .where(condition)
         .orderBy(desc(notifications.createdAt));
     return rows.map(toResponse);
 }

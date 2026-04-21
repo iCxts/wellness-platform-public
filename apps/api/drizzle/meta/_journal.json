@@ -15,6 +15,34 @@
       "when": 1775692841327,
       "tag": "0001_adorable_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776787905584,
+      "tag": "0002_low_red_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776789312377,
+      "tag": "0003_short_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776793679919,
+      "tag": "0004_amused_leopardon",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776793956238,
+      "tag": "0005_milky_living_mummy",
+      "breakpoints": true
     }
   ]
 }
