@@ -1,0 +1,106 @@
+Base URL: http://localhost:3001
+Auth: All protected routes require `Authorization: Bearer <token>` header.
+QR CODE: frontend -> encode qr code url
+
+System: GET /health (NO AUTH, SERVER+DB HEALTH CHECKC)
+Auth: POST /auth/register (NO AUTH, REGISTER NEW MEMBER)
+      POST /auth/login (NO AUTH, RETURNS JWT)
+
+REGISTER OBJECT
+{
+  "email": "USER@EMAIL.COM", (EMAIL FORMAT)
+  "password": "password", (MIN 8 CHARS)
+  "firstName": "test",
+  "lastName": "user",
+  "phone": "+66624087182" (OPTIONAL)
+}
+
+RESPONSE (201)
+{
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "role": "member"
+  }
+}
+
+LOGIN OBJECT
+{
+  "email": "USER@EMAIL.COM",
+  "password": "password"
+}
+
+RESPONSE (200)
+{
+  "token": "eyJ...",
+  "user": {
+    "id": "uuid",
+    "email": "USER@EMAIL.COM",
+    "role": "member"
+  }
+}
+
+ROLES:  `member` | `trainer` | `staff` | `admin`
+
+
+sessions(REQUIRE AUTH (JWT TOKEN)): GET /sessions (ANY ROLE, list upcoming sessions)
+                                    GET /sessions/:id (ANY ROLE, get single session)
+                                    POST /sessions (ADMIN ROLE, create session)
+                                    PATCH /sessions/:id (ADMIN, update session)
+                                    DELETE /sessions/:id (ADMIN, delete session)
+
+SESSION OBJECT
+{
+  "id": "uuid",
+  "title": "yoga class",
+  "type": "group_class",
+  "trainerId": "uuid | null",
+  "zoneId": "uuid",
+  "startsAt": "2026-04-01T08:00:00.000Z",
+  "endsAt": "2026-04-01T09:00:00.000Z",
+  "capacity": 20,
+  "spotsLeft": 14
+}
+
+Session types: `group_class` | `personal_training` | `medical_consult` | `open_facility`
+
+
+BOOKING(ALSO REQUIRE JWT TOKEN, FOR MEMBERS): POST /bookings (book a session(auto-standby if full))
+                                 DELETE /bookings/:id (cancel booking)
+                                 GET /bookings/me (view my bookings)
+
+BOOKING OBJECCT
+{
+  "id": "uuid",
+  "sessionId": "uuid",
+  "userId": "uuid",
+  "status": "confirmed",
+  "standbyPosition": null,
+  "createdAt": "2026-03-31T10:00:00.000Z"
+}
+
+Booking statuses: `confirmed` | `standby` | `cancelled` | `no_show` | `attended`
+
+
+CHECK IN(FOR STAFF ROLE, REQ JWT TOKEN): POST /checkin (validate qr and mark attended)
+
+
+ZONES(REQ JWT TOKEN): GET /zones (ANY ROLE, list zones)
+                      POST /zones (ADMIN, create zones)
+
+ZONE OBJECT
+{
+  "id": "uuid",
+  "name": "Yoga zone",
+  "description": "Ground floor",
+  "capacity": 25,
+  "isActive": true
+}
+
+
+NOTES
+- All timestamps are ISO 8601 UTC strings
+- All IDs are UUIDs
+- Errors return `{ "error": "message" }` with an appropriate HTTP status
+- JWT expires in 7 days(?) store in memory or httpOnly cookie, not localStorage
+- Standby position is `null` for confirmed bookings, 1-based integer for standby
