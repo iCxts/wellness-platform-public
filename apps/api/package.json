@@ -1,0 +1,35 @@
+{
+  "name": "@wellness/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.11",
+    "@hono/zod-validator": "^0.4.3",
+    "@wellness/db": "*",
+    "@wellness/types": "*",
+    "bcryptjs": "^3.0.3",
+    "bullmq": "^5.73.4",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.40.0",
+    "hono": "^4.7.7",
+    "jose": "^6.2.2",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.13.14",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+**/*.test.*
+**/*.spec.*
+**/coverage
+.idea
+docker-compose*.yml
+.dockerignore
+*.log
