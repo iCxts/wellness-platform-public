@@ -33,7 +33,8 @@ export async function processReminder(sessionId: string, sessionTitle: string, w
             booking.userId,
             "reminder",
             `Reminder: ${sessionTitle}`,
-            `Your class starts in ${window}.`
+            `Your class starts in ${window}.`,
+            { sessionId, bookingId: booking.id }
         );
     }
 }

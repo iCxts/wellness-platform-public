@@ -55,12 +55,16 @@ Monorepo using npm workspaces. No Turborepo.
 | Sessions routes | ✅ Done | all 5 routes + GET /:id/bookings; admin + instructor(own) guards |
 | Zones routes + service | ✅ Done | listZones, createZone, enterZone, exitZone; mounted |
 | Bookings routes + service | ✅ Done | createBooking, cancelBooking, listMyBookings (with ?past + ?status filters), standby logic |
-| Check-in route | ✅ Done | POST /checkin, any auth, station QR model, today-only validation |
+| Check-in route | ✅ Done | POST /checkin, instructor/admin auth, member QR model — `{ sessionId, memberToken }`; verifies QR JWT, today-only, marks attended |
 | Checkout route | ✅ Done | POST /checkout, any auth, station QR model, sets checkedOutAt |
 | Zone visits (GYM) | ✅ Done | POST /zones/:id/enter + /zones/:id/exit, zone_visits table |
 | Notifications (in-app) | ✅ Done | notifications table, GET /notifications/me, PATCH read/read-all |
 | Progress tracking | ✅ Done | GET /progress/me — attendance stats + streak from bookings + zone_visits |
 | BullMQ jobs | ✅ Done | standby-promotion, no-show-tagger, absence-checker, reminder; worker wired |
+| Users routes | ✅ Done | GET /users/me, PATCH /users/me, POST /users/me/avatar, GET /users/me/qr, GET /users/me/checkin/latest |
+| Dashboard | ✅ Done | GET /dashboard/me — profile, upcomingClass, progress, schedule (7 days), myBookings in one call |
+| Bookings tab query | ✅ Done | GET /bookings/me?tab=upcoming|history|waitlist — enriched with session details |
+| SSE (real-time) | ⏳ Pending | GET /events/me — member holds SSE stream; POST /checkin pushes `checked_in` event to trigger QR→welcome navigation |
 | Web app | ⏳ Pending | Next.js — not scaffolded yet |
 
 ## Dev Commands
@@ -150,12 +154,22 @@ Admin sees any session. Instructor only sees sessions where `trainerId === reque
 ## Bookings Service (`apps/api/src/services/bookings.service.ts`)
 - `createBooking(userId, sessionId)`: checks confirmed count vs capacity → `confirmed` if spots left, else `standby` with next position
 - `cancelBooking(userId, bookingId)`: verifies ownership; if was `confirmed`, promotes lowest standby to `confirmed`; enqueues `standby-promotion` job
-- `listMyBookings(userId, filters?)`: optional `status` filter and `past: true` flag
+- `listMyBookings(userId, filters?)`: optional `status` filter and `past: true` flag (legacy)
+- `listMyBookingsWithSession(userId, tab)`: tab = `upcoming|history|waitlist`; joins session data; returns `BookingWithSessionResponse[]`
+  - `upcoming`: confirmed bookings, future sessions, sorted soonest first
+  - `history`: all statuses, past sessions, sorted newest first
+  - `waitlist`: standby bookings, sorted soonest first
 
 ## Check-in / Check-out
-- Station QR model — QR code is fixed at the location; member scans it with their app
-- `POST /checkin` — any auth; payload `{ sessionId }`; looks up booking by `(userId from JWT, sessionId)`; validates `confirmed` + session is today → sets status to `attended`
+- Member QR model — member shows QR in their app; instructor scans it
+- `POST /checkin` — instructor/admin auth; payload `{ sessionId, memberToken }`; verifies `memberToken` (QR JWT, type=`qr_checkin`); extracts `sub` → memberId; validates `confirmed` + session is today → sets status to `attended`; returns `{ checkInTime, className, memberName }`
 - `POST /checkout` — any auth; payload `{ sessionId }`; looks up booking by `(userId from JWT, sessionId)`; must be `attended` → sets `checkedOutAt = now`
+
+## Member QR Token
+- `GET /users/me/qr` — member only; generates short-lived JWT (`type: "qr_checkin"`, 5 min expiry); returns `{ token, expiresAt }`
+- Frontend encodes `token` string into QR image
+- Token regenerates client-side: countdown from `expiresAt`, re-call on expiry
+- After instructor scans → SSE pushes `checked_in` event to member's open stream → member app navigates to welcome page
 
 ## Zone Visits (GYM Access)
 - Station QR model — QR at zone entrance/exit; member scans; JWT identifies them; no body needed
@@ -180,6 +194,15 @@ Admin sees any session. Instructor only sees sessions where `trainerId === reque
   - `totalDays`: unique calendar days with any activity (attended booking or zone_visit)
   - `currentStreak`: consecutive days with activity up to today
 - Same-day class + gym visit counts as 1 day (Set deduplication)
+
+## Dashboard (`apps/api/src/services/dashboard.service.ts`)
+- `GET /dashboard/me` — single endpoint for main page; all 8 DB queries run in parallel via `Promise.all`
+- Returns:
+  - `profile`: `{ firstName, avatarUrl }`
+  - `upcomingClass`: next confirmed booking with session info + `startsInMs` (ms until start); null if none
+  - `progress`: `{ currentStreak, totalSessionsAttended, totalZoneVisits }`
+  - `schedule`: all sessions in next 7 days with `spotsLeft` + user's `bookingStatus`/`bookingId` overlaid; null = not booked
+  - `myBookings`: upcoming confirmed + standby bookings joined with session details
 
 ## Background Jobs (BullMQ) — `apps/api/src/jobs/`
 - `queue.ts` — shared BullMQ queue + `createWorker` factory

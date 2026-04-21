@@ -1,8 +1,9 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { bookings, sessions } from "@wellness/db";
+import { bookings, sessions, users } from "@wellness/db";
+import type { CheckInResponse } from "@wellness/types";
 
-export async function checkIn(userId: string, sessionId: string): Promise<void> {
+export async function checkIn(userId: string, sessionId: string): Promise<CheckInResponse> {
     const [session] = await db
         .select()
         .from(sessions)
@@ -26,8 +27,17 @@ export async function checkIn(userId: string, sessionId: string): Promise<void> 
     if (!booking) throw new Error("Booking not found");
     if (booking.status !== "confirmed") throw new Error(`Cannot check in a booking with status ${booking.status}`);
 
+    const checkInTime = new Date();
     await db
         .update(bookings)
-        .set({ status: "attended" })
+        .set({ status: "attended", updatedAt: checkInTime })
         .where(eq(bookings.id, booking.id));
+
+    const [userRow] = await db.select().from(users).where(eq(users.id, userId));
+
+    return {
+        checkInTime: checkInTime.toISOString(),
+        className: session.title,
+        memberName: `${userRow.firstname} ${userRow.lastname}`,
+    };
 }

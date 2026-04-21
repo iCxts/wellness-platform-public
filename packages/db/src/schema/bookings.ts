@@ -2,7 +2,7 @@ import { pgTable, uuid, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { sessions } from "./sessions"; 
 
-export const bookingStatusEnum = pgEnum("booking_status", ['confirmed', 'standby', 'cancelled', 'attended', 'no_show']);
+export const bookingStatusEnum = pgEnum("booking_status", ['confirmed', 'standby', 'cancelled', 'attended', 'no_show', 'pending_confirmation']);
 
 export const bookings = pgTable("bookings", {
     id: uuid("id").primaryKey().defaultRandom(),

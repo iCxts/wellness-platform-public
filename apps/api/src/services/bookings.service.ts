@@ -1,7 +1,7 @@
 import { db } from "../db/index.js";
-import { bookings, sessions } from "@wellness/db";
-import type { BookingResponse } from "@wellness/types";
-import { eq, and, count, asc, lt, inArray } from "drizzle-orm";
+import { bookings, sessions, users, zones } from "@wellness/db";
+import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse } from "@wellness/types";
+import { eq, and, count, asc, desc, lt, gt, inArray } from "drizzle-orm";
 import { enqueueStandbyPromotion } from "../jobs/standby-promotion.job.js";
 
 function toResponse(b: typeof bookings.$inferSelect): BookingResponse {
@@ -100,6 +100,164 @@ export async function cancelBooking(userId: string, bookingId: string): Promise<
 
     await enqueueStandbyPromotion(booking.sessionId);
 };
+
+export async function listMyBookingsWithSession(
+    userId: string,
+    tab: "upcoming" | "history" | "waitlist"
+): Promise<BookingWithSessionResponse[]> {
+    const now = new Date();
+
+    const tabConditions: Record<string, Parameters<typeof and>> = {
+        upcoming: [
+            eq(bookings.userId, userId),
+            eq(bookings.status, "confirmed"),
+            gt(sessions.startsAt, now),
+        ],
+        history: [
+            eq(bookings.userId, userId),
+            lt(sessions.startsAt, now),
+        ],
+        waitlist: [
+            eq(bookings.userId, userId),
+            eq(bookings.status, "standby"),
+        ],
+    };
+
+    const order = tab === "history" ? desc(sessions.startsAt) : asc(sessions.startsAt);
+
+    const rows = await db
+        .select({
+            bookingId: bookings.id,
+            sessionId: sessions.id,
+            title: sessions.title,
+            type: sessions.type,
+            imageUrl: sessions.imageUrl,
+            startsAt: sessions.startsAt,
+            endsAt: sessions.endsAt,
+            status: bookings.status,
+            standbyPosition: bookings.standbyPosition,
+            createdAt: bookings.createdAt,
+        })
+        .from(bookings)
+        .innerJoin(sessions, eq(bookings.sessionId, sessions.id))
+        .where(and(...tabConditions[tab]))
+        .orderBy(order);
+
+    return rows.map((r) => ({
+        bookingId: r.bookingId,
+        sessionId: r.sessionId,
+        title: r.title,
+        type: r.type,
+        imageUrl: r.imageUrl,
+        startsAt: r.startsAt.toISOString(),
+        endsAt: r.endsAt.toISOString(),
+        status: r.status,
+        standbyPosition: r.standbyPosition,
+        createdAt: r.createdAt.toISOString(),
+    }));
+}
+
+export async function confirmBooking(userId: string, bookingId: string): Promise<BookingResponse> {
+    const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, bookingId));
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) throw new Error("Unauthorized");
+    if (booking.status !== "pending_confirmation") throw new Error("Booking is not pending confirmation");
+
+    const [updated] = await db
+        .update(bookings)
+        .set({ status: "confirmed" })
+        .where(eq(bookings.id, bookingId))
+        .returning();
+    return toResponse(updated);
+}
+
+export async function getBookingDetail(
+    userId: string,
+    bookingId: string
+): Promise<BookingDetailResponse> {
+    const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, bookingId));
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) throw new Error("Unauthorized");
+
+    const [sessionRow] = await db
+        .select({
+            id: sessions.id,
+            title: sessions.title,
+            type: sessions.type,
+            level: sessions.level,
+            focus: sessions.focus,
+            description: sessions.description,
+            imageUrl: sessions.imageUrl,
+            roomName: sessions.roomName,
+            trainerId: sessions.trainerId,
+            startsAt: sessions.startsAt,
+            endsAt: sessions.endsAt,
+            capacity: sessions.capacity,
+            zoneName: zones.name,
+        })
+        .from(sessions)
+        .innerJoin(zones, eq(sessions.zoneId, zones.id))
+        .where(eq(sessions.id, booking.sessionId));
+    if (!sessionRow) throw new Error("Session not found");
+
+    const [{ confirmed }] = await db
+        .select({ confirmed: count() })
+        .from(bookings)
+        .where(and(
+            eq(bookings.sessionId, booking.sessionId),
+            eq(bookings.status, "confirmed")
+        ));
+
+    let instructor: BookingDetailResponse["instructor"] = null;
+    if (sessionRow.trainerId) {
+        const [trainerRow] = await db
+            .select({
+                id: users.id,
+                firstName: users.firstname,
+                lastName: users.lastname,
+                avatarUrl: users.avatarUrl,
+            })
+            .from(users)
+            .where(eq(users.id, sessionRow.trainerId));
+        if (trainerRow) {
+            instructor = {
+                id: trainerRow.id,
+                firstName: trainerRow.firstName,
+                lastName: trainerRow.lastName,
+                avatarUrl: trainerRow.avatarUrl,
+            };
+        }
+    }
+
+    return {
+        bookingId: booking.id,
+        status: booking.status,
+        standbyPosition: booking.standbyPosition,
+        createdAt: booking.createdAt.toISOString(),
+        session: {
+            id: sessionRow.id,
+            title: sessionRow.title,
+            type: sessionRow.type,
+            level: sessionRow.level,
+            focus: sessionRow.focus as BookingDetailResponse["session"]["focus"],
+            description: sessionRow.description,
+            imageUrl: sessionRow.imageUrl,
+            roomName: sessionRow.roomName,
+            startsAt: sessionRow.startsAt.toISOString(),
+            endsAt: sessionRow.endsAt.toISOString(),
+            capacity: sessionRow.capacity,
+            spotsLeft: Math.max(0, sessionRow.capacity - Number(confirmed)),
+            zoneName: sessionRow.zoneName,
+        },
+        instructor,
+    };
+}
 
 export async function listMyBookings(
     userId: string,
