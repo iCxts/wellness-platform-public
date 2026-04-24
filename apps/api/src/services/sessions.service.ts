@@ -48,6 +48,7 @@ export async function listSessions(filters?: {
         description: s.description,
         imageUrl: s.imageUrl,
         roomName: s.roomName,
+        placeDescription: s.placeDescription,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -77,6 +78,7 @@ export async function getSession(id: string): Promise<SessionResponse | null> {
         description: s.description,
         imageUrl: s.imageUrl,
         roomName: s.roomName,
+        placeDescription: s.placeDescription,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -96,6 +98,7 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
             focus: input.focus ?? null,
             description: input.description ?? null,
             roomName: input.roomName ?? null,
+            placeDescription: input.placeDescription ?? null,
             trainerId: input.trainerId ?? null,
             zoneId: input.zoneId,
             startsAt: new Date(input.startsAt),
@@ -115,6 +118,7 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
         description: s.description,
         imageUrl: s.imageUrl,
         roomName: s.roomName,
+        placeDescription: s.placeDescription,
         trainerId: s.trainerId,
         zoneId: s.zoneId,
         startsAt: s.startsAt.toISOString(),
@@ -132,6 +136,7 @@ export async function updateSession(id: string, input: Partial<CreateSessionInpu
     if (input.focus !== undefined) values.focus = input.focus;
     if (input.description !== undefined) values.description = input.description;
     if (input.roomName !== undefined) values.roomName = input.roomName;
+    if (input.placeDescription !== undefined) values.placeDescription = input.placeDescription;
     if (input.trainerId !== undefined) values.trainerId = input.trainerId;
     if (input.zoneId !== undefined) values.zoneId = input.zoneId;
     if (input.startsAt !== undefined) values.startsAt = new Date(input.startsAt);

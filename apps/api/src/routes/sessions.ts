@@ -31,6 +31,7 @@ const sessionSchema = z.object({
   focus: z.array(z.enum(SESSION_FOCUSES)).optional(),
   description: z.string().optional(),
   roomName: z.string().optional(),
+  placeDescription: z.string().optional(),
   trainerId: z.string().uuid().optional(),
   zoneId: z.string().uuid(),
   startsAt: z.string().datetime(),

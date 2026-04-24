@@ -12,6 +12,7 @@ import {
     generateQrToken,
     getLatestCheckIn,
 } from "../services/users.service.js";
+import { getProgress } from "../services/progress.service.js";
 
 const usersRouter = new Hono<{ Variables: { user: JwtPayload } }>();
 
@@ -65,6 +66,23 @@ usersRouter.get("/me/checkin/latest", async (c) => {
     const result = await getLatestCheckIn(c.get("user").sub);
     if (!result) return c.json({ error: "No check-in found" }, 404);
     return c.json(result);
+});
+
+usersRouter.get("/:memberId", async (c) => {
+    const { role } = c.get("user");
+    if (role !== "instructor" && role !== "admin") return c.json({ error: "Forbidden" }, 403);
+    const profile = await getMyProfile(c.req.param("memberId"));
+    if (!profile) return c.json({ error: "User not found" }, 404);
+    return c.json(profile);
+});
+
+usersRouter.get("/:memberId/progress", async (c) => {
+    const { role } = c.get("user");
+    if (role !== "instructor" && role !== "admin") return c.json({ error: "Forbidden" }, 403);
+    const profile = await getMyProfile(c.req.param("memberId"));
+    if (!profile) return c.json({ error: "User not found" }, 404);
+    const progress = await getProgress(c.req.param("memberId"));
+    return c.json(progress);
 });
 
 export default usersRouter;

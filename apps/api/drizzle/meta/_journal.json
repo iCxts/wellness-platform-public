@@ -43,6 +43,13 @@
       "when": 1776793956238,
       "tag": "0005_milky_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777047661471,
+      "tag": "0006_high_spyke",
+      "breakpoints": true
     }
   ]
 }

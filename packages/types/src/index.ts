@@ -50,6 +50,7 @@ export type CreateSessionInput = {
     focus?: SessionFocus[];
     description?: string;
     roomName?: string;
+    placeDescription?: string;
     trainerId?: string;
     zoneId: string;
     startsAt: string;
@@ -66,6 +67,7 @@ export type SessionResponse = {
     description: string | null;
     imageUrl: string | null;
     roomName: string | null;
+    placeDescription: string | null;
     trainerId?: string | null;
     zoneId: string;
     startsAt: string;

@@ -14,6 +14,7 @@ export const sessions = pgTable("sessions", {
     description: text("description"),
     imageUrl: text("image_url"),
     roomName: text("room_name"),
+    placeDescription: text("place_description"),
     trainerId: uuid("trainer_id").references(() => users.id),
     zoneId: uuid("zone_id").notNull().references(() => zones.id),
     startsAt: timestamp("starts_at").notNull(),
