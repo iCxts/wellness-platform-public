@@ -243,6 +243,31 @@ export type BookingDetailResponse = {
     } | null;
 };
 
+//admin bookings
+export type AdminBookingResponse = {
+    bookingId: string;
+    status: BookingStatus;
+    standbyPosition: number | null;
+    createdAt: string;
+    session: {
+        id: string;
+        title: string;
+        type: SessionType;
+        imageUrl: string | null;
+        startsAt: string;
+        endsAt: string;
+        capacity: number;
+        spotsLeft: number;
+    };
+    member: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        avatarUrl: string | null;
+    };
+};
+
 //dashboard
 export type DashboardUpcomingClass = {
     bookingId: string;

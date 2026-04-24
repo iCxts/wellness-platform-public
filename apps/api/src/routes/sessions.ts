@@ -54,17 +54,10 @@ sessions.get("/:id", async(c) => {
   return c.json(session);
 });
 
-sessions.post("/",  zValidator("json", sessionSchema), async(c) => {
-   const { role, sub } = c.get("user");
-   const body = c.req.valid("json");
-   if (role !== "admin") {
-    if (role !== "instructor") {
-      return c.json({ error: "Unauthorized"}, 403);
-    }
-    body.trainerId = sub;
-   }
-   const session = await createSession(body);
-   return c.json(session, 201);
+sessions.post("/", zValidator("json", sessionSchema), async(c) => {
+  if (c.get("user").role !== "admin") return c.json({ error: "Unauthorized" }, 403);
+  const session = await createSession(c.req.valid("json"));
+  return c.json(session, 201);
 });
 
 

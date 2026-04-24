@@ -1,7 +1,7 @@
 import { db } from "../db/index.js";
 import { bookings, sessions, users, zones } from "@wellness/db";
-import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse } from "@wellness/types";
-import { eq, and, count, asc, desc, lt, gt, inArray } from "drizzle-orm";
+import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse, AdminBookingResponse } from "@wellness/types";
+import { eq, and, count, asc, desc, lt, gte, gt, inArray } from "drizzle-orm";
 import { enqueueStandbyPromotion } from "../jobs/standby-promotion.job.js";
 
 function toResponse(b: typeof bookings.$inferSelect): BookingResponse {
@@ -257,6 +257,87 @@ export async function getBookingDetail(
         },
         instructor,
     };
+}
+
+export async function listAllBookings(filters?: {
+    sessionId?: string;
+    status?: string;
+}): Promise<AdminBookingResponse[]> {
+    const now = new Date();
+    const conditions: ReturnType<typeof eq>[] = [gte(sessions.startsAt, now)];
+    if (filters?.sessionId) conditions.push(eq(bookings.sessionId, filters.sessionId));
+    if (filters?.status) conditions.push(eq(bookings.status, filters.status as typeof bookings.status._.data));
+
+    const rows = await db
+        .select({
+            bookingId: bookings.id,
+            status: bookings.status,
+            standbyPosition: bookings.standbyPosition,
+            createdAt: bookings.createdAt,
+            sessionId: sessions.id,
+            title: sessions.title,
+            type: sessions.type,
+            imageUrl: sessions.imageUrl,
+            startsAt: sessions.startsAt,
+            endsAt: sessions.endsAt,
+            capacity: sessions.capacity,
+            memberId: users.id,
+            firstName: users.firstname,
+            lastName: users.lastname,
+            email: users.email,
+            avatarUrl: users.avatarUrl,
+        })
+        .from(bookings)
+        .innerJoin(sessions, eq(bookings.sessionId, sessions.id))
+        .innerJoin(users, eq(bookings.userId, users.id))
+        .where(and(...conditions))
+        .orderBy(asc(sessions.startsAt));
+
+    const sessionIds = [...new Set(rows.map((r) => r.sessionId))];
+    const spotCounts: Record<string, number> = {};
+    if (sessionIds.length > 0) {
+        const counts = await db
+            .select({ sessionId: bookings.sessionId, confirmed: count() })
+            .from(bookings)
+            .where(and(inArray(bookings.sessionId, sessionIds), eq(bookings.status, "confirmed")))
+            .groupBy(bookings.sessionId);
+        for (const c of counts) spotCounts[c.sessionId] = Number(c.confirmed);
+    }
+
+    return rows.map((r) => ({
+        bookingId: r.bookingId,
+        status: r.status,
+        standbyPosition: r.standbyPosition,
+        createdAt: r.createdAt.toISOString(),
+        session: {
+            id: r.sessionId,
+            title: r.title,
+            type: r.type,
+            imageUrl: r.imageUrl,
+            startsAt: r.startsAt.toISOString(),
+            endsAt: r.endsAt.toISOString(),
+            capacity: r.capacity,
+            spotsLeft: Math.max(0, r.capacity - (spotCounts[r.sessionId] ?? 0)),
+        },
+        member: {
+            id: r.memberId,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            email: r.email,
+            avatarUrl: r.avatarUrl,
+        },
+    }));
+}
+
+const ACTIVE_STATUSES = ["confirmed", "standby", "attended"] as const;
+
+export async function hardDeleteBooking(bookingId: string): Promise<void> {
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    if (!booking) throw new Error("Booking not found");
+    if ((ACTIVE_STATUSES as readonly string[]).includes(booking.status)) {
+        throw new Error("Cannot delete active booking");
+    }
+    await db.delete(bookings).where(eq(bookings.id, bookingId));
 }
 
 export async function listMyBookings(
