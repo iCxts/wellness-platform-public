@@ -54,14 +54,20 @@ sessions.get("/:id", async(c) => {
   return c.json(session);
 });
 
-sessions.post("/", zValidator("json", sessionSchema), async(c) => {
-  if (c.get("user").role !== "admin") return c.json({ error: "Unauthorized" }, 403);
-  const session = await createSession(c.req.valid("json"));
-  return c.json(session, 201);
-});
+sessions.post("/",
+  (c, next) => { if (c.get("user").role !== "admin") return c.json({ error: "Unauthorized" }, 403); return next(); },
+  zValidator("json", sessionSchema),
+  async(c) => {
+    const session = await createSession(c.req.valid("json"));
+    return c.json(session, 201);
+  }
+);
 
 
-sessions.patch("/:id", zValidator("json", sessionSchema.partial()), async(c) => {
+sessions.patch("/:id",
+  (c, next) => { const { role } = c.get("user"); if (role !== "admin" && role !== "instructor") return c.json({ error: "Unauthorized" }, 403); return next(); },
+  zValidator("json", sessionSchema.partial()),
+  async(c) => {
   const { role, sub } = c.get("user");
   if (role !== "admin") {
     const existing = await getSession(c.req.param("id"));
@@ -82,7 +88,9 @@ sessions.delete("/:id", async(c) => {
     await deleteSession(c.req.param("id"));
     return c.body(null, 204);
   } catch (error) {
-    return c.json({ error: "Failed to delete session" }, 409);
+    const msg = error instanceof Error ? error.message : "Failed to delete session";
+    const isConflict = msg.includes("Cannot delete");
+    return c.json({ error: msg }, isConflict ? 409 : 500);
   }
 });
 

@@ -169,6 +169,7 @@ export async function deleteSession(id: string): Promise<void> {
         throw new Error("Cannot delete a session with existing bookings");
     }
 
+    await db.delete(bookings).where(eq(bookings.sessionId, id));
     await db.delete(sessions).where(eq(sessions.id, id));
 }
 

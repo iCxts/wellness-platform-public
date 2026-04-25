@@ -9,9 +9,3 @@ node_modules
 coverage
 .DS_Store
 Thumbs.db
-
-# AI/LLM files
-.claude/
-graphify-out/
-*.txt
-*.md

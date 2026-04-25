@@ -20,11 +20,14 @@ zones.get("/", async (c) => {
     return c.json(data);
 });
 
-zones.post("/", zValidator("json", zoneSchema), async (c) => {
-    if (c.get("user").role !== "admin") return c.json({ error: "Unauthorized" }, 403);
-    const zone = await createZone(c.req.valid("json"));
-    return c.json(zone, 201);
-});
+zones.post("/",
+    (c, next) => { if (c.get("user").role !== "admin") return c.json({ error: "Unauthorized" }, 403); return next(); },
+    zValidator("json", zoneSchema),
+    async (c) => {
+        const zone = await createZone(c.req.valid("json"));
+        return c.json(zone, 201);
+    }
+);
 
 zones.post("/:id/enter", async (c) => {
     try {

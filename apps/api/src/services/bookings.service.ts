@@ -81,24 +81,8 @@ export async function cancelBooking(userId: string, bookingId: string): Promise<
         .where(eq(bookings.id, booking.id));
 
     if (booking.status === "confirmed") {
-        const [next] = await db
-            .select()
-            .from(bookings)
-            .where(and(
-                eq(bookings.sessionId, booking.sessionId),
-                eq(bookings.status, "standby")
-            ))
-            .orderBy(asc(bookings.standbyPosition))
-            .limit(1);
-        if (next) {
-            await db 
-                .update(bookings)
-                .set({ status: "confirmed", standbyPosition: null})
-                .where(eq(bookings.id, next.id));
-        }
+        await enqueueStandbyPromotion(booking.sessionId);
     }
-
-    await enqueueStandbyPromotion(booking.sessionId);
 };
 
 export async function listMyBookingsWithSession(
