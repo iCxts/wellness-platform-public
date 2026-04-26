@@ -20,7 +20,7 @@ const isActive = (to: string) => (to === '/' ? route.path === '/' : route.path.s
 
 <template>
   <aside
-    class="hidden h-screen flex-col gap-2 border-r border-black/5 bg-white/70 px-5 py-8 backdrop-blur-xl md:sticky md:top-0 md:flex md:w-64"
+    class="hidden h-screen flex-col gap-2 border-r border-black/5 bg-white/70 px-5 py-8 backdrop-blur-xl xl:sticky xl:top-0 xl:flex xl:w-64"
   >
     <div class="mb-8 flex items-center gap-3 px-2">
       <div class="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--bw-orange)] text-white">

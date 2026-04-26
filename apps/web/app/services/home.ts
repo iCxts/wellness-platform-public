@@ -30,7 +30,8 @@ export async function fetchNextSession(): Promise<NextSession> {
     title: 'YOGA Express',
     subtitle: 'Your Next Session',
     startsInMinutes: 120,
-    imageUrl: 'https://www.figma.com/api/mcp/asset/22377b52-159d-4e36-8ade-0a08516b2b06',
+    imageUrl:
+      'https://www.figma.com/api/mcp/asset/22377b52-159d-4e36-8ade-0a08516b2b06',
   })
 }
 
@@ -68,10 +69,29 @@ export async function fetchProgressStats(): Promise<ProgressStat[]> {
 export async function fetchWeekSchedule(): Promise<ScheduleDay[]> {
   await wait()
   const days = [
-    { date: '2026-04-05', dayLabel: 'Today', dayNum: 5, isToday: true, hasSession: true, sessionTone: 'orange' },
-    { date: '2026-04-06', dayLabel: 'Mon', dayNum: 6, hasSession: true, sessionTone: 'yellow' },
+    {
+      date: '2026-04-05',
+      dayLabel: 'Today',
+      dayNum: 5,
+      isToday: true,
+      hasSession: true,
+      sessionTone: 'orange',
+    },
+    {
+      date: '2026-04-06',
+      dayLabel: 'Mon',
+      dayNum: 6,
+      hasSession: true,
+      sessionTone: 'yellow',
+    },
     { date: '2026-04-07', dayLabel: 'Tue', dayNum: 7 },
-    { date: '2026-04-08', dayLabel: 'Wed', dayNum: 8, hasSession: true, sessionTone: 'yellow' },
+    {
+      date: '2026-04-08',
+      dayLabel: 'Wed',
+      dayNum: 8,
+      hasSession: true,
+      sessionTone: 'yellow',
+    },
     { date: '2026-04-09', dayLabel: 'Thu', dayNum: 9 },
     { date: '2026-04-10', dayLabel: 'Fri', dayNum: 10 },
     { date: '2026-04-11', dayLabel: 'Sat', dayNum: 11 },
@@ -108,6 +128,40 @@ export async function fetchBookings(): Promise<Booking[]> {
     },
     {
       id: 'b_3',
+      title: 'YOGA Flow',
+      startTime: '13:00',
+      endTime: '14:00',
+      imageUrl:
+        'https://images.unsplash.com/photo-1540206395-68808572332f?auto=format&fit=crop&w=600&h=400&q=80',
+      location: 'Wellness Center A',
+      date: '2026-04-13',
+      dateLabel: '13 Apr',
+      available: true,
+    },
+    {
+      id: 'b_4',
+      title: 'YOGA Express',
+      startTime: '12:45',
+      endTime: '13:00',
+      imageUrl:
+        'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=600&h=400&q=80',
+      location: 'Wellness Center A',
+      date: '2026-04-05',
+      dateLabel: 'Today',
+    },
+    {
+      id: 'b_5',
+      title: 'Full Body Flex',
+      startTime: '13:00',
+      endTime: '14:00',
+      imageUrl:
+        'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&h=400&q=80',
+      location: 'Wellness Center C',
+      date: '2026-04-13',
+      dateLabel: '13 Apr',
+    },
+    {
+      id: 'b_6',
       title: 'YOGA Flow',
       startTime: '13:00',
       endTime: '14:00',

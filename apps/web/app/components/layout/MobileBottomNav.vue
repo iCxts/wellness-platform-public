@@ -26,7 +26,7 @@ const isActive = (to: string) =>
 
 <template>
   <nav
-    class="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[9999] mx-auto flex w-[min(20rem,calc(100%-1.25rem))] items-center justify-between rounded-full border border-black/10 bg-black/0.12 px-3.5 py-2.5 shadow-card backdrop-blur-xl md:hidden"
+    class="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[9999] mx-auto flex w-[min(20rem,calc(100%-1.25rem))] items-center justify-between rounded-full border border-black/10 bg-black/0.12 px-3.5 py-2.5 shadow-card backdrop-blur-xl xl:hidden"
   >
     <NuxtLink
       v-for="item in items"

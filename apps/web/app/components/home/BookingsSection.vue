@@ -7,7 +7,9 @@ const { data: bookings, isPending } = useBookings()
 <template>
   <section class="space-y-3">
     <div class="flex items-end justify-between">
-      <h2 class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">My Booking</h2>
+      <h2 class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">
+        My Booking
+      </h2>
       <NuxtLink
         to="/bookings"
         class="flex items-center gap-1 text-xs font-medium text-[var(--bw-ink)] underline-offset-4 hover:underline md:text-sm"
@@ -27,7 +29,7 @@ const { data: bookings, isPending } = useBookings()
 
     <div
       v-else
-      class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0"
+      class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar md:mx-0 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-4 md:overflow-visible md:px-0"
     >
       <Motion
         v-for="(booking, index) in bookings"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Motion } from 'motion-v'
 import type { ScheduleTab } from '~/schemas/schedule'
 
 definePageMeta({
@@ -11,10 +12,14 @@ const { data: scheduleItems, isPending } = useScheduleList(activeTab)
 </script>
 
 <template>
-  <LayoutAppShell content-max-width="max-w-[860px]">
+  <LayoutAppShell content-max-width="">
     <div class="space-y-5 pb-3 md:space-y-7">
-      <ScheduleHeader />
-      <ScheduleTabs v-model="activeTab" />
+      <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35 }">
+        <ScheduleHeader />
+      </Motion>
+      <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.06 }">
+        <ScheduleTabs v-model="activeTab" />
+      </Motion>
 
       <div v-if="isPending" class="space-y-4">
         <div
@@ -25,11 +30,15 @@ const { data: scheduleItems, isPending } = useScheduleList(activeTab)
       </div>
 
       <div v-else class="space-y-4">
-        <ScheduleCard
-          v-for="item in scheduleItems"
+        <Motion
+          v-for="(item, index) in scheduleItems"
           :key="item.id"
-          :item="item"
-        />
+          :initial="{ opacity: 0, y: 12 }"
+          :animate="{ opacity: 1, y: 0 }"
+          :transition="{ duration: 0.32, delay: 0.1 + index * 0.04 }"
+        >
+          <ScheduleCard :item="item" />
+        </Motion>
       </div>
     </div>
   </LayoutAppShell>

@@ -17,7 +17,7 @@ const startsInLabel = computed(() => {
     :initial="{ opacity: 0, y: 16 }"
     :animate="{ opacity: 1, y: 0 }"
     :transition="{ duration: 0.45, delay: 0.05 }"
-    class="relative h-[176px] overflow-hidden rounded-[28px] shadow-card md:h-[220px]"
+    class="relative h-[176px] overflow-hidden rounded-[28px] shadow-card md:h-[420px]"
   >
     <div v-if="isPending" class="h-full w-full animate-pulse bg-black/10" />
 
@@ -40,7 +40,9 @@ const startsInLabel = computed(() => {
 
       <div class="absolute right-6 top-[56%] -translate-y-1/2 text-white">
         <div>
-          <p class="text-[12px] font-medium leading-tight opacity-95 md:text-sm">
+          <p
+            class="text-[12px] font-medium leading-tight opacity-95 md:text-sm"
+          >
             {{ session.subtitle }}
           </p>
           <p class="mt-1 text-[18px] font-bold leading-tight md:text-[22px]">

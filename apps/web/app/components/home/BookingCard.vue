@@ -26,7 +26,9 @@ defineProps<{ booking: Booking }>()
         {{ booking.startTime }} - {{ booking.endTime }}
       </p>
       <div class="flex items-center justify-between gap-2">
-        <p class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">{{ booking.title }}</p>
+        <p class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">
+          {{ booking.title }}
+        </p>
         <span
           v-if="booking.available"
           class="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 md:text-[10px]"
@@ -34,8 +36,13 @@ defineProps<{ booking: Booking }>()
           Available
         </span>
       </div>
-      <div class="mt-1 flex items-center gap-1 text-[10px] text-[rgba(4,0,54,0.8)] md:text-xs">
-        <Icon name="ph:map-pin-simple-area" class="h-3.5 w-3.5 text-[rgba(4,0,54,0.7)]" />
+      <div
+        class="mt-1 flex items-center gap-1 text-[10px] text-[rgba(4,0,54,0.8)] md:text-xs"
+      >
+        <Icon
+          name="ph:map-pin-simple-area"
+          class="h-3.5 w-3.5 text-[rgba(4,0,54,0.7)]"
+        />
         <span>{{ booking.location }}</span>
       </div>
     </div>

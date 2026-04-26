@@ -6,7 +6,7 @@ definePageMeta({
 </script>
 
 <template>
-  <LayoutAppShell>
+  <LayoutAppShell content-max-width="">
     <div class="space-y-6 md:space-y-8">
       <HomeHeader />
 
