@@ -9,7 +9,7 @@ interface NavItem {
 const items: NavItem[] = [
   { id: 'home', icon: 'ph:house-fill', label: 'Home', to: '/' },
   { id: 'search', icon: 'ph:magnifying-glass', label: 'Discover', to: '/search' },
-  { id: 'check-in', icon: 'ph:qr-code', label: 'Check-in', to: '/check-in' },
+  { id: 'check-in', icon: 'ph:qr-code', label: 'Scan', to: '/check-in' },
   { id: 'schedule', icon: 'ph:calendar-blank', label: 'Schedule', to: '/schedule' },
   { id: 'profile', icon: 'ph:user', label: 'Profile', to: '/profile' },
 ]
