@@ -17,6 +17,7 @@
     "npm": ">=10.0.0"
   },
   "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.14.0",
     "ruflo": "^3.5.78"
   }
 }
