@@ -1,12 +1,17 @@
 {
-  "name": "@wellness/web",
-  "version": "0.1.0",
+  "name": "web",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "nuxt": "^4.4.2",
+    "vue": "^3.5.32",
+    "vue-router": "^5.0.4"
   }
 }
