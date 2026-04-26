@@ -148,6 +148,19 @@ Regenerate on the client when `expiresAt` is reached.
 
 ---
 
+### POST /users/me/device-token
+Member only. Register or update FCM device token for push notifications. Call on every app launch.
+
+**Body**
+```json
+{ "token": "fcm-device-token-string" }
+```
+
+**200** `{ "success": true }`
+**403** Non-member role.
+
+---
+
 ### GET /users/me/checkin/latest
 Member only. Get details of the most recent check-in.
 
@@ -605,7 +618,9 @@ Rules:
 
 ## Notifications
 
-All routes require auth. In-app only — no email or SMS.
+All routes require auth. In-app + FCM push — no email or SMS.
+
+Every notification saved to DB also fires a push to the member's registered device (if token exists). The `checked_in` event is a silent data-only push sent directly from `POST /checkin` — no banner, app handles navigation.
 
 Notification types: `standby_promoted` | `no_show_tagged` | `absence_warning` | `feedback_request` | `reminder`
 

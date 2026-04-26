@@ -11,6 +11,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().url().optional(),
   JWT_SECRET: z.string().min(16),
   BASE_URL: z.string().url().default("http://localhost:3001"),
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);

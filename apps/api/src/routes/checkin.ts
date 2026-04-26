@@ -6,6 +6,7 @@ import type { JwtPayload } from "../middleware/auth.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { checkIn } from "../services/checkin.service.js";
 import { env } from "../env.js";
+import { sendPush } from "../services/push.service.js";
 
 const checkin = new Hono<{ Variables: { user: JwtPayload } }>();
 
@@ -30,6 +31,12 @@ checkin.post("/", zValidator("json", checkInSchema), async (c) => {
 
         const memberId = payload.sub as string;
         const result = await checkIn(memberId, sessionId);
+        sendPush(memberId, "", "", {
+            type: "checked_in",
+            sessionId: sessionId,
+            className: result.className
+        }).catch(() => {});
+
         return c.json(result);
     } catch (err) {
         const msg = (err as Error).message;

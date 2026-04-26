@@ -2,6 +2,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { notifications } from "@wellness/db";
 import type { NotificationResponse, NotificationType, NotificationMetadata } from "@wellness/types";
+import { sendPush } from "./push.service.js";
 
 function toResponse(n: typeof notifications.$inferSelect): NotificationResponse {
     return {
@@ -26,6 +27,8 @@ export async function createNotification(
     await db
         .insert(notifications)
         .values({ userId, type, title, body, metadata: metadata ?? null });
+    
+    sendPush(userId, title, body).catch(() => {});
 }
 
 export async function listNotifications(userId: string, unreadOnly = false): Promise<NotificationResponse[]> {

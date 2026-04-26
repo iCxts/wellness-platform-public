@@ -50,6 +50,13 @@
       "when": 1777047661471,
       "tag": "0006_high_spyke",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777189827322,
+      "tag": "0007_colossal_nicolaos",
+      "breakpoints": true
     }
   ]
 }

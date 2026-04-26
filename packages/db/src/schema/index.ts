@@ -4,3 +4,4 @@ export * from "./sessions";
 export * from "./bookings";
 export * from "./zone_visits";
 export * from "./notifications";
+export * from "./device_tokens";

@@ -76,7 +76,10 @@ sessions.patch("/:id",
       return c.json({ error: "Unauthorized" }, 403)
     } 
   }
-  const updated = await updateSession(c.req.param("id"), c.req.valid("json"));
+  const body = c.req.valid("json");
+  const { trainerId: _trainerId, ...instructorSafeBody } = body;
+  const input = role === "admin" ? body : instructorSafeBody;
+  const updated = await updateSession(c.req.param("id"), input);
   if (!updated) return c.json({ error: "Session not found" }, 404);
   return c.json(updated);
 });

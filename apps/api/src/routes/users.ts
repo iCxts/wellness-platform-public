@@ -13,6 +13,7 @@ import {
     getLatestCheckIn,
 } from "../services/users.service.js";
 import { getProgress } from "../services/progress.service.js";
+import { registerDeviceToken } from "../services/push.service.js";
 
 const usersRouter = new Hono<{ Variables: { user: JwtPayload } }>();
 
@@ -84,5 +85,16 @@ usersRouter.get("/:memberId/progress", async (c) => {
     const progress = await getProgress(c.req.param("memberId"));
     return c.json(progress);
 });
+
+usersRouter.post(
+    "/me/device-token",
+    zValidator("json", z.object({ token: z.string().min(1) })),
+    async (c) => {
+        if (c.get("user").role !== "member") return c.json({ error: "Forbidden"}, 403);
+        const { token } = c.req.valid("json");
+        await registerDeviceToken(c.get("user").sub, token);
+        return c.json({ success: true });
+    }
+);
 
 export default usersRouter;
