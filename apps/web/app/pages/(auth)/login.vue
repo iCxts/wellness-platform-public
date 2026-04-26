@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const router = useRouter()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
@@ -7,6 +8,10 @@ const inputClass =
   'h-14 rounded-[20px] border border-[#d9d9d9] bg-[#f8f8f8] px-4 flex items-center gap-3'
 const inputTextClass =
   'flex-1 border-0 bg-transparent text-[15px] text-[#111] outline-none placeholder:text-[#a5a5a5]'
+
+const handleLogin = async () => {
+  await router.push('/')
+}
 </script>
 
 <template>
@@ -74,6 +79,7 @@ const inputTextClass =
         <button
           class="mt-2 h-14 rounded-[20px] border-0 bg-[#ff6727] text-[17px] font-bold text-white flex items-center justify-center gap-3 cursor-pointer"
           type="button"
+          @click="handleLogin"
         >
           Log in
           <span aria-hidden="true">›</span>
