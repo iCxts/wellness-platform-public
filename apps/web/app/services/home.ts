@@ -30,8 +30,7 @@ export async function fetchNextSession(): Promise<NextSession> {
     title: 'YOGA Express',
     subtitle: 'Your Next Session',
     startsInMinutes: 120,
-    imageUrl:
-      'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?auto=format&fit=crop&w=1200&h=720&q=80',
+    imageUrl: 'https://www.figma.com/api/mcp/asset/22377b52-159d-4e36-8ade-0a08516b2b06',
   })
 }
 

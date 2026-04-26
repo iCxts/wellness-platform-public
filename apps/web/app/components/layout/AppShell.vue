@@ -3,7 +3,9 @@ defineProps<{ contentMaxWidth?: string }>()
 </script>
 
 <template>
-  <div class="min-h-dvh overflow-x-hidden bg-[#f4f4f4] text-[var(--bw-ink)]">
+  <div
+    class="max-h-dvh overflow-x-hidden overflow-y-auto bg-[#f4f4f4] text-[var(--bw-ink)]"
+  >
     <div class="md:flex md:items-start">
       <LayoutDesktopSidebar />
       <main class="flex-1">

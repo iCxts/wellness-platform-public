@@ -4,7 +4,9 @@ import { Motion } from 'motion-v'
 
 const { data: stats, isPending } = useProgressStats()
 
-const wideStat = computed(() => stats.value?.find((stat) => stat.emphasis === 'wide'))
+const wideStat = computed(() =>
+  stats.value?.find((stat) => stat.emphasis === 'wide'),
+)
 const compactStats = computed(
   () => stats.value?.filter((stat) => stat.emphasis === 'compact') ?? [],
 )
@@ -12,11 +14,15 @@ const compactStats = computed(
 
 <template>
   <section class="space-y-3">
-    <h2 class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">My Progress</h2>
+    <h2 class="text-sm font-semibold text-[var(--bw-ink)] md:text-base">
+      My Progress
+    </h2>
 
     <div v-if="isPending" class="grid gap-3">
       <div class="h-20 animate-pulse rounded-3xl bg-white/70" />
-      <div class="grid grid-cols-1 gap-3 overflow-hidden min-[360px]:grid-cols-2">
+      <div
+        class="grid grid-cols-1 gap-3 overflow-hidden min-[360px]:grid-cols-2"
+      >
         <div class="h-24 animate-pulse rounded-3xl bg-white/70" />
         <div class="h-24 animate-pulse rounded-3xl bg-white/70" />
       </div>
