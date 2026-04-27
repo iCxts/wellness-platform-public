@@ -10,17 +10,46 @@ import {
   type ScheduleDay,
   type User,
 } from '~/schemas/home'
+import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function fetchUser(): Promise<User> {
-  await wait()
-  return userSchema.parse({
-    id: 'u_1',
-    name: 'PEAR',
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  const token = auth.token.value
+  const fallback = userSchema.parse({
+    id: auth.user.value?.id ?? 'u_1',
+    name: auth.user.value?.email?.split('@')[0] ?? 'Member',
     avatarUrl:
       'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=160&h=160&q=80',
   })
+
+  if (!token) {
+    return fallback
+  }
+
+  try {
+    const me = await $fetch<{
+      id: string
+      firstName: string
+      lastName: string
+      avatarUrl: string | null
+    }>('/users/me', {
+      baseURL: config.public.apiBase || 'http://localhost:3001',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    return userSchema.parse({
+      id: me.id,
+      name: `${me.firstName} ${me.lastName}`.trim(),
+      avatarUrl:
+        me.avatarUrl ??
+        'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=160&h=160&q=80',
+    })
+  } catch {
+    return fallback
+  }
 }
 
 export async function fetchNextSession(): Promise<NextSession> {

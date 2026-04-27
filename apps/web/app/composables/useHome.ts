@@ -16,7 +16,10 @@ export const homeQueryKeys = {
 }
 
 export const useUser = () =>
-  useQuery({ queryKey: homeQueryKeys.user, queryFn: fetchUser })
+  useQuery({
+    queryKey: [...homeQueryKeys.user, useAuth().user.value?.id ?? 'guest'],
+    queryFn: fetchUser,
+  })
 
 export const useNextSession = () =>
   useQuery({

@@ -10,6 +10,11 @@ export default defineNuxtConfig({
       include: ['@tanstack/vue-query', 'motion-v', 'zod'],
     },
   },
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:3001',
+    },
+  },
   app: {
     head: {
       link: [

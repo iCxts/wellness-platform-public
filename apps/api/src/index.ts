@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { env } from "./env.js";
 import { db } from "./db/index.js";
 import { sql } from "drizzle-orm";
@@ -18,6 +19,16 @@ import { startWorker } from "./jobs/worker.js";
 import { enqueueAbsenceChecker } from "./jobs/absence-checker.job.js";
 
 const app = new Hono();
+
+app.use(
+  "*",
+  cors({
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 app.use("/avatars/*", serveStatic({ root: "./uploads" }));
 app.use("/sessions/*", serveStatic({ root: "./uploads" }));

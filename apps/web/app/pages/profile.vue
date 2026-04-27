@@ -5,6 +5,7 @@ import type { ProfileMenuItem } from '~/schemas/profile'
 definePageMeta({ ssr: false })
 
 const router = useRouter()
+const auth = useAuth()
 const showLogoutSheet = ref(false)
 const { data: profileData, isPending } = useProfileData()
 
@@ -31,6 +32,7 @@ const handleMenuAction = async (item: ProfileMenuItem) => {
 
 const confirmLogout = async () => {
   showLogoutSheet.value = false
+  auth.logout()
   await router.push('/login')
 }
 

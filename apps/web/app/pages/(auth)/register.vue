@@ -1,15 +1,65 @@
 <script setup lang="ts">
+const router = useRouter()
+const auth = useAuth()
 const name = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const inputClass =
   'h-14 rounded-[20px] border border-[#d9d9d9] bg-[#f8f8f8] px-4 flex items-center gap-3'
 const inputTextClass =
   'flex-1 border-0 bg-transparent text-[15px] text-[#111] outline-none placeholder:text-[#a5a5a5]'
+
+const splitName = (fullName: string) => {
+  const clean = fullName.trim().replace(/\s+/g, ' ')
+  const [firstName = '', ...rest] = clean.split(' ')
+  return {
+    firstName,
+    lastName: rest.join(' ') || 'User',
+  }
+}
+
+const handleRegister = async () => {
+  if (isSubmitting.value) return
+  errorMessage.value = ''
+
+  if (password.value !== confirmPassword.value) {
+    errorMessage.value = 'Passwords do not match.'
+    return
+  }
+
+  const { firstName, lastName } = splitName(name.value)
+  if (!firstName) {
+    errorMessage.value = 'Please enter your name.'
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    await auth.register({
+      email: email.value.trim(),
+      password: password.value,
+      firstName,
+      lastName,
+    })
+
+    const loginResult = await auth.login({
+      email: email.value.trim(),
+      password: password.value,
+    })
+    await router.push(auth.getHomePathByRole(loginResult.user.role))
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Unable to sign up.'
+  } finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -37,8 +87,9 @@ const inputTextClass =
         </p>
       </div>
 
-      <div
+      <form
         class="flex flex-col justify-center gap-[1.15rem] bg-white px-9 py-11 max-[940px]:px-5 max-[940px]:py-6"
+        @submit.prevent="handleRegister"
       >
         <label :class="inputClass">
           <span class="text-sm text-[#ff6727]" aria-hidden="true">👤</span>
@@ -104,11 +155,16 @@ const inputTextClass =
           </button>
         </label>
 
+        <p v-if="errorMessage" class="text-center text-sm text-[#c20000]">
+          {{ errorMessage }}
+        </p>
+
         <button
           class="mt-3 h-14 rounded-[20px] border-0 bg-[#ff6727] text-[17px] font-bold text-white flex items-center justify-center gap-3 cursor-pointer"
-          type="button"
+          type="submit"
+          :disabled="isSubmitting"
         >
-          Sign up
+          {{ isSubmitting ? 'Signing up...' : 'Sign up' }}
           <span aria-hidden="true">›</span>
         </button>
 
@@ -122,7 +178,7 @@ const inputTextClass =
             >Log in</NuxtLink
           >
         </p>
-      </div>
+      </form>
     </section>
   </main>
 </template>

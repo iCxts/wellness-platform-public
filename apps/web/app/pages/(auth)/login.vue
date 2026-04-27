@@ -1,8 +1,11 @@
 <script setup lang="ts">
 const router = useRouter()
+const auth = useAuth()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 const inputClass =
   'h-14 rounded-[20px] border border-[#d9d9d9] bg-[#f8f8f8] px-4 flex items-center gap-3'
@@ -10,7 +13,21 @@ const inputTextClass =
   'flex-1 border-0 bg-transparent text-[15px] text-[#111] outline-none placeholder:text-[#a5a5a5]'
 
 const handleLogin = async () => {
-  await router.push('/')
+  if (isSubmitting.value) return
+  errorMessage.value = ''
+  isSubmitting.value = true
+  try {
+    const result = await auth.login({
+      email: email.value.trim(),
+      password: password.value,
+    })
+    await router.push(auth.getHomePathByRole(result.user.role))
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Unable to login.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -39,8 +56,9 @@ const handleLogin = async () => {
         </h1> -->
       </div>
 
-      <div
+      <form
         class="flex flex-col justify-center gap-5 bg-white px-12 py-14 max-[940px]:px-6 max-[940px]:py-9"
+        @submit.prevent="handleLogin"
       >
         <h2 class="mb-4 text-center text-[2rem] font-semibold text-black">
           Log In
@@ -76,12 +94,16 @@ const handleLogin = async () => {
           </button>
         </label>
 
+        <p v-if="errorMessage" class="text-center text-sm text-[#c20000]">
+          {{ errorMessage }}
+        </p>
+
         <button
           class="mt-2 h-14 rounded-[20px] border-0 bg-[#ff6727] text-[17px] font-bold text-white flex items-center justify-center gap-3 cursor-pointer"
-          type="button"
-          @click="handleLogin"
+          type="submit"
+          :disabled="isSubmitting"
         >
-          Log in
+          {{ isSubmitting ? 'Logging in...' : 'Log in' }}
           <span aria-hidden="true">›</span>
         </button>
 
@@ -93,7 +115,7 @@ const handleLogin = async () => {
             >Sign up</NuxtLink
           >
         </p>
-      </div>
+      </form>
     </section>
   </main>
 </template>

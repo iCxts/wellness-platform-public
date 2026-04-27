@@ -4,14 +4,33 @@ interface NavItem {
   icon: string
   label: string
   to: string
+  roles?: Array<'member' | 'instructor' | 'admin'>
 }
 
 const items: NavItem[] = [
   { id: 'home', icon: 'ph:house-fill', label: 'Home', to: '/' },
   { id: 'search', icon: 'ph:magnifying-glass', label: 'Search', to: '/search' },
-  { id: 'instructor', icon: 'ph:chalkboard-teacher', label: 'Teach', to: '/instructor' },
-  { id: 'admin', icon: 'ph:shield-star', label: 'Admin', to: '/admin' },
-  { id: 'check-in', icon: 'ph:qr-code', label: 'Scan', to: '/check-in' },
+  {
+    id: 'instructor',
+    icon: 'ph:chalkboard-teacher',
+    label: 'Teach',
+    to: '/instructor',
+    roles: ['instructor'],
+  },
+  {
+    id: 'admin',
+    icon: 'ph:shield-star',
+    label: 'Admin',
+    to: '/admin',
+    roles: ['admin'],
+  },
+  {
+    id: 'check-in',
+    icon: 'ph:qr-code',
+    label: 'Scan',
+    to: '/check-in',
+    roles: ['member', 'instructor'],
+  },
   {
     id: 'schedule',
     icon: 'ph:calendar-blank',
@@ -22,6 +41,14 @@ const items: NavItem[] = [
 ]
 
 const route = useRoute()
+const auth = useAuth()
+
+const visibleItems = computed(() => {
+  const role = auth.user.value?.role
+  if (!role) return items
+  return items.filter((item) => !item.roles || item.roles.includes(role))
+})
+
 const isActive = (to: string) =>
   to === '/' ? route.path === '/' : route.path.startsWith(to)
 </script>
@@ -31,7 +58,7 @@ const isActive = (to: string) =>
     class="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[9999] mx-auto flex w-[min(20rem,calc(100%-1.25rem))] items-center justify-between rounded-full border border-black/10 bg-black/0.12 px-3.5 py-2.5 shadow-card backdrop-blur-xl xl:hidden"
   >
     <NuxtLink
-      v-for="item in items"
+      v-for="item in visibleItems"
       :key="item.id"
       :to="item.to"
       class="grid h-11 w-11 place-items-center rounded-full transition-colors"
