@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const { data: summary, isPending } = useAdminDashboardSummary()
+const { pageEnter, listStagger } = useAppPageMotion()
 </script>
 
 <template>
   <LayoutAppShell content-max-width="max-w-[860px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-5 pb-4 md:space-y-6">
       <header class="flex items-center gap-3">
         <NuxtLink to="/admin" class="grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)]">
@@ -15,11 +19,18 @@ const { data: summary, isPending } = useAdminDashboardSummary()
       </header>
 
       <div class="flex flex-wrap gap-2 md:gap-2.5">
-        <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">This Week</button>
-        <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">This Month</button>
-        <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">All time</button>
+        <Motion v-bind="listStagger(0)">
+          <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">This Week</button>
+        </Motion>
+        <Motion v-bind="listStagger(1)">
+          <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">This Month</button>
+        </Motion>
+        <Motion v-bind="listStagger(2)">
+          <button class="rounded-lg border border-[#666] px-4 py-2 text-sm text-[#666]">All time</button>
+        </Motion>
       </div>
 
+      <Motion v-bind="listStagger(3)">
       <section class="rounded-xl border border-[#d8d8d8] bg-white p-4 md:p-5">
         <svg viewBox="0 0 360 250" class="h-auto w-full" role="img" aria-label="Attendance trend chart placeholder">
           <rect x="0" y="0" width="360" height="250" fill="#fff" />
@@ -38,8 +49,10 @@ const { data: summary, isPending } = useAdminDashboardSummary()
           </g>
         </svg>
       </section>
+      </Motion>
 
       <div class="grid gap-4 md:grid-cols-2 md:gap-5">
+        <Motion v-bind="listStagger(4)" class="md:col-span-2">
         <section class="rounded-xl border border-[#d8d8d8] bg-white p-5 md:col-span-2">
           <p class="text-center text-xl font-medium text-[var(--bw-ink)] md:text-2xl">No-show rate</p>
           <div class="mt-4 flex justify-center">
@@ -52,19 +65,25 @@ const { data: summary, isPending } = useAdminDashboardSummary()
             </div>
           </div>
         </section>
+        </Motion>
 
+        <Motion v-bind="listStagger(5)">
         <section class="rounded-xl border border-[#d8d8d8] bg-white p-5">
           <p class="text-xl font-medium text-[var(--bw-ink)] md:text-2xl">Total attendance</p>
           <p class="mt-3 text-6xl font-medium text-[var(--bw-orange)] md:text-7xl">{{ isPending ? '--' : summary?.attendanceTotal }}</p>
           <p class="mt-2 flex items-center gap-1 text-sm md:text-base"><Icon name="ph:arrow-up" class="h-4 w-4 text-[#1e8e3e]" /> 12% Increased</p>
         </section>
+        </Motion>
 
+        <Motion v-bind="listStagger(6)">
         <section class="rounded-xl border border-[#d8d8d8] bg-white p-5">
           <p class="text-xl font-medium text-[var(--bw-ink)] md:text-2xl">Total classes held</p>
           <p class="mt-3 text-6xl font-medium text-[var(--bw-orange)] md:text-7xl">{{ isPending ? '--' : summary?.classesHeldTotal }}</p>
           <p class="mt-2 flex items-center gap-1 text-sm md:text-base"><Icon name="ph:arrow-up" class="h-4 w-4 text-[#1e8e3e]" /> 12% Increased</p>
         </section>
+        </Motion>
 
+        <Motion v-bind="listStagger(7)" class="md:col-span-2">
         <section class="rounded-xl border border-[#d8d8d8] bg-white p-5 md:col-span-2">
           <p class="text-center text-xl font-medium text-[var(--bw-ink)] md:text-2xl">Total bookings</p>
           <div class="mt-3 flex flex-col items-center justify-center gap-2 md:flex-row md:gap-6">
@@ -72,8 +91,10 @@ const { data: summary, isPending } = useAdminDashboardSummary()
             <p class="flex items-center gap-1 text-lg md:text-2xl"><Icon name="ph:arrow-up" class="h-5 w-5 text-[#1e8e3e]" /> 12% Increased</p>
           </div>
         </section>
+        </Motion>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

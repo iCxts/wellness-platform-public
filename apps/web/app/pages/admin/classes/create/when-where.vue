@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const draft = useAdminCreateClassDraft()
+const { pageEnter } = useAppPageMotion()
 
 const days = [
   { label: 'Sun', day: 5 },
@@ -24,6 +27,7 @@ const durationMin = computed(() => {
 
 <template>
   <LayoutAppShell content-max-width="max-w-[860px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-5 pb-5 md:space-y-6">
       <header class="flex items-center gap-3">
         <NuxtLink to="/admin/classes/create/class-details" class="grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)]">
@@ -120,6 +124,7 @@ const durationMin = computed(() => {
         </NuxtLink>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

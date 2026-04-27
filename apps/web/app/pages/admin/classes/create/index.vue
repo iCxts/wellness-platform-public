@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const draft = useAdminCreateClassDraft()
+const { pageEnter, listStagger } = useAppPageMotion()
 const selectedCategory = computed({
   get: () => draft.value.category,
   set: (value: string) => {
@@ -21,6 +24,7 @@ const categories = [
 
 <template>
   <LayoutAppShell content-max-width="max-w-[840px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-6 pb-4 md:space-y-7">
       <header class="flex items-center gap-3">
         <NuxtLink to="/admin" class="grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)]">
@@ -37,11 +41,14 @@ const categories = [
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2 md:gap-5">
-        <button
-          v-for="category in categories"
+        <Motion
+          v-for="(category, index) in categories"
           :key="category"
+          v-bind="listStagger(index)"
+        >
+        <button
           type="button"
-          class="rounded-[20px] border border-[rgba(87,84,84,0.17)] bg-white p-5 text-left shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-colors md:min-h-[190px]"
+          class="h-full w-full rounded-[20px] border border-[rgba(87,84,84,0.17)] bg-white p-5 text-left shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-colors md:min-h-[190px]"
           :class="selectedCategory === category ? 'bg-[var(--bw-orange)] text-white' : 'text-[var(--bw-ink)]'"
           @click="selectedCategory = category"
         >
@@ -55,6 +62,7 @@ const categories = [
           </div>
           <p class="text-2xl font-bold leading-tight">{{ category }}</p>
         </button>
+        </Motion>
       </div>
 
       <div class="sticky bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] flex justify-end pt-3 md:static">
@@ -66,6 +74,7 @@ const categories = [
         </NuxtLink>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

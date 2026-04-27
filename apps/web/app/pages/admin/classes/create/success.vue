@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const draft = useAdminCreateClassDraft()
+const { pageEnter } = useAppPageMotion()
 </script>
 
 <template>
   <LayoutAppShell content-max-width="max-w-[760px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="mx-auto max-w-[560px] space-y-8 py-8">
       <div class="mx-auto grid h-[132px] w-[132px] place-items-center rounded-full bg-[#fbe6dd]">
         <div class="grid h-[100px] w-[100px] place-items-center rounded-full bg-[var(--bw-orange)] text-6xl text-white">✓</div>
@@ -36,6 +40,7 @@ const draft = useAdminCreateClassDraft()
         </NuxtLink>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

@@ -3,7 +3,7 @@ import { Motion } from 'motion-v'
 
 definePageMeta({ ssr: false })
 
-const { data: sessions, isPending } = useAdminSessions()
+const { data: sessions, isPending } = useInstructorSessions()
 const { pageEnter, listStagger } = useAppPageMotion()
 </script>
 
@@ -11,28 +11,10 @@ const { pageEnter, listStagger } = useAppPageMotion()
   <LayoutAppShell content-max-width="max-w-[980px]">
     <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-5 md:space-y-6">
-      <header class="flex items-center justify-between gap-3">
-        <h1
-          class="text-[28px] font-bold leading-none text-[var(--bw-ink)] md:text-[32px]"
-        >
-          All Class
+      <header class="text-center">
+        <h1 class="text-[22px] font-bold text-[var(--bw-ink)] md:text-2xl">
+          My Schedule
         </h1>
-        <div class="flex items-center gap-2">
-          <NuxtLink
-            to="/admin/dashboard"
-            class="grid h-10 w-10 place-items-center rounded-full border-2 border-black text-black md:h-11 md:w-11"
-            aria-label="Go to dashboard"
-          >
-            <Icon name="ph:chart-line-up-bold" class="h-5 w-5" />
-          </NuxtLink>
-          <NuxtLink
-            to="/admin/classes/create"
-            class="grid h-10 w-10 place-items-center rounded-full border-2 border-black text-black md:h-11 md:w-11"
-            aria-label="Create class"
-          >
-            <Icon name="ph:plus-bold" class="h-5 w-5" />
-          </NuxtLink>
-        </div>
       </header>
 
       <div v-if="isPending" class="space-y-4">
@@ -85,16 +67,16 @@ const { pageEnter, listStagger } = useAppPageMotion()
             </p>
             <div class="flex flex-wrap gap-2 pt-1 md:gap-2.5">
               <NuxtLink
-                :to="`/admin/classes/${session.id}/edit`"
+                :to="`/instructor/classes/${session.id}/edit`"
                 class="rounded-[10px] border border-[var(--bw-orange)] px-4 py-1.5 text-sm font-medium text-[var(--bw-orange)] md:px-5"
               >
                 Edit Session
               </NuxtLink>
               <NuxtLink
-                :to="`/admin/classes/${session.id}/members`"
+                :to="`/instructor/classes/${session.id}/members`"
                 class="rounded-[10px] bg-[var(--bw-orange)] px-4 py-1.5 text-sm font-medium text-white md:px-5"
               >
-                See Member
+                See member
               </NuxtLink>
             </div>
           </div>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const draft = useAdminCreateClassDraft()
+const { pageEnter } = useAppPageMotion()
 
 const categoryEmoji = computed(() => {
   if (draft.value.category.includes('Yoga')) return '🧘'
@@ -15,6 +18,7 @@ const categoryEmoji = computed(() => {
 
 <template>
   <LayoutAppShell content-max-width="max-w-[840px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-6 pb-4 md:space-y-7">
       <header class="flex items-center gap-3">
         <NuxtLink to="/admin/classes/create" class="grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)]">
@@ -58,6 +62,7 @@ const categoryEmoji = computed(() => {
         </NuxtLink>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

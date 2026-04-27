@@ -9,6 +9,7 @@ interface NavItem {
 const items: NavItem[] = [
   { id: 'home', icon: 'ph:house-fill', label: 'Home', to: '/' },
   { id: 'search', icon: 'ph:magnifying-glass', label: 'Search', to: '/search' },
+  { id: 'instructor', icon: 'ph:chalkboard-teacher', label: 'Teach', to: '/instructor' },
   { id: 'admin', icon: 'ph:shield-star', label: 'Admin', to: '/admin' },
   { id: 'check-in', icon: 'ph:qr-code', label: 'Scan', to: '/check-in' },
   {

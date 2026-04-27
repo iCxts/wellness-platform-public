@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const route = useRoute()
@@ -6,6 +8,7 @@ const sessionId = computed(() => String(route.params.id ?? ''))
 
 const { data: session } = useAdminSession(sessionId)
 const { data: members, isPending } = useAdminMembers(sessionId)
+const { pageEnter, listStagger } = useAppPageMotion()
 
 const statusClass: Record<string, string> = {
   attended: 'bg-[var(--bw-orange)] text-white',
@@ -22,6 +25,7 @@ const statusLabel: Record<string, string> = {
 
 <template>
   <LayoutAppShell content-max-width="max-w-[940px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-4 pb-6 md:space-y-5">
       <NuxtLink to="/admin" class="inline-grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)]">
         <Icon name="ph:arrow-circle-left" class="h-7 w-7" />
@@ -56,9 +60,12 @@ const statusLabel: Record<string, string> = {
       </div>
 
       <div v-else class="space-y-2">
-        <article
-          v-for="member in members"
+        <Motion
+          v-for="(member, index) in members"
           :key="member.id"
+          v-bind="listStagger(index)"
+        >
+        <article
           class="grid items-center gap-3 rounded-xl border border-black/10 bg-white px-2 py-2 sm:grid-cols-[1.2fr_1fr] md:grid-cols-[1.4fr_1fr_0.8fr] md:border-0 md:border-b md:border-black/10 md:rounded-none"
         >
           <div class="flex min-w-0 items-center gap-2.5">
@@ -73,8 +80,10 @@ const statusLabel: Record<string, string> = {
             {{ statusLabel[member.status] }}
           </p>
         </article>
+        </Motion>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 

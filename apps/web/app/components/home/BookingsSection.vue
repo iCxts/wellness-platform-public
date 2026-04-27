@@ -11,7 +11,7 @@ const { data: bookings, isPending } = useBookings()
         My Booking
       </h2>
       <NuxtLink
-        to="/bookings"
+        to="/search"
         class="flex items-center gap-1 text-xs font-medium text-[var(--bw-ink)] underline-offset-4 hover:underline md:text-sm"
       >
         See All

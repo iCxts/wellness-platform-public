@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { Motion } from 'motion-v'
+
 definePageMeta({ ssr: false })
 
 const draft = useAdminCreateClassDraft()
+const { pageEnter } = useAppPageMotion()
 </script>
 
 <template>
   <LayoutAppShell content-max-width="max-w-[860px]">
+    <Motion v-bind="pageEnter" class="w-full min-w-0">
     <div class="space-y-5 pb-5 md:space-y-6">
       <div class="relative h-[220px] overflow-hidden rounded-[20px] sm:h-[240px] md:h-[280px]">
         <img :src="draft.coverImageUrl" alt="Class cover" class="h-full w-full object-cover" />
@@ -66,6 +70,7 @@ const draft = useAdminCreateClassDraft()
         </NuxtLink>
       </div>
     </div>
+    </Motion>
   </LayoutAppShell>
 </template>
 
