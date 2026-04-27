@@ -49,7 +49,7 @@ app.get("/health", async (c) => {
     await db.execute(sql`SELECT 1`);
     return c.json({ status: "ok", db: "connected" });
   } catch {
-    return c.json({ status: "error", db: "unreachable" }, 401);
+    return c.json({ status: "error", db: "unreachable" }, 503);
   }
 });
 
