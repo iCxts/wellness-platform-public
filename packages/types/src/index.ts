@@ -90,6 +90,13 @@ export type BookingResponse = {
     createdAt: string;
 };
 
+export type BookingQrResponse = {
+    token: string;
+    bookingId: string;
+    sessionId: string;
+    expiresAt: string;
+};
+
 //booking for instructor
 export type BookingWithUserResponse = {
     id: string;

@@ -1,11 +1,16 @@
 import {
   adminDashboardSummarySchema,
+  adminInstructorOptionSchema,
   adminMemberSchema,
   adminSessionSchema,
+  adminZoneSchema,
   type AdminDashboardSummary,
+  type AdminInstructorOption,
   type AdminMember,
   type AdminSession,
+  type AdminZone,
 } from '~/schemas/admin'
+import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 220) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -101,21 +106,134 @@ const membersBySessionSeed: Record<string, AdminMember[]> = {
   ),
 }
 
+const mapStatus = (
+  status:
+    | 'confirmed'
+    | 'standby'
+    | 'cancelled'
+    | 'no_show'
+    | 'attended'
+    | 'pending_confirmation',
+) => {
+  if (status === 'attended') return 'attended'
+  if (status === 'no_show') return 'no-show'
+  return 'pending'
+}
+
+const toTimeLabel = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+const toDateLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+  })
+
+const apiFetch = async <T>(path: string, options: Parameters<typeof $fetch<T>>[1] = {}) => {
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  return await $fetch<T>(path, {
+    baseURL: config.public.apiBase || 'http://localhost:3001',
+    headers: auth.token.value
+      ? { Authorization: `Bearer ${auth.token.value}` }
+      : undefined,
+    ...options,
+  })
+}
+
 export async function fetchAdminSessions(): Promise<AdminSession[]> {
-  await wait()
-  return sessionsSeed.map((item) => adminSessionSchema.parse(item))
+  try {
+    const [sessions, instructors] = await Promise.all([
+      apiFetch<
+        Array<{
+          id: string
+          title: string
+          startsAt: string
+          endsAt: string
+          placeDescription: string | null
+          roomName: string | null
+          capacity: number
+          spotsLeft: number
+          trainerId: string | null
+          imageUrl: string | null
+        }>
+      >('/sessions'),
+      fetchAdminInstructors(),
+    ])
+
+    const instructorById = new Map(instructors.map((item) => [item.id, item.name]))
+    const mapped = sessions.map((item) =>
+      adminSessionSchema.parse({
+        id: item.id,
+        title: item.title,
+        startTime: toTimeLabel(item.startsAt),
+        endTime: toTimeLabel(item.endsAt),
+        dateLabel: toDateLabel(item.startsAt),
+        location: item.placeDescription ?? 'Wellness Center',
+        room: item.roomName ?? 'Room',
+        participants: Math.max(item.capacity - item.spotsLeft, 0),
+        capacity: item.capacity,
+        instructor: item.trainerId
+          ? instructorById.get(item.trainerId) ?? 'Assigned Instructor'
+          : 'Unassigned',
+        imageUrl: item.imageUrl ?? sessionsSeed[0].imageUrl,
+      }),
+    )
+
+    // Keep placeholders, but always show database classes first.
+    return [...mapped, ...sessionsSeed]
+  } catch {
+    await wait()
+    return sessionsSeed.map((item) => adminSessionSchema.parse(item))
+  }
 }
 
 export async function fetchAdminSessionById(id: string): Promise<AdminSession> {
-  await wait()
-  const found = sessionsSeed.find((item) => item.id === id) ?? sessionsSeed[0]
+  const sessions = await fetchAdminSessions()
+  const found = sessions.find((item) => item.id === id) ?? sessionsSeed[0]
   return adminSessionSchema.parse(found)
 }
 
 export async function fetchAdminMembers(sessionId: string): Promise<AdminMember[]> {
-  await wait()
-  const members = membersBySessionSeed[sessionId] ?? membersBySessionSeed['yoga-express']
-  return members.map((member) => adminMemberSchema.parse(member))
+  try {
+    const rows = await apiFetch<
+      Array<{
+        id: string
+        status:
+          | 'confirmed'
+          | 'standby'
+          | 'cancelled'
+          | 'no_show'
+          | 'attended'
+          | 'pending_confirmation'
+        user: {
+          id: string
+          firstName: string
+          lastName: string
+          email: string
+        }
+      }>
+    >(`/sessions/${sessionId}/bookings`)
+
+    return rows.map((item, index) =>
+      adminMemberSchema.parse({
+        id: item.id,
+        name: `${item.user.firstName} ${item.user.lastName}`.trim(),
+        email: item.user.email,
+        checkInTime: null,
+        status: mapStatus(item.status),
+        avatarUrl: membersBySessionSeed['yoga-express'][index % 9]?.avatarUrl,
+      }),
+    )
+  } catch {
+    await wait()
+    const members = membersBySessionSeed[sessionId] ?? membersBySessionSeed['yoga-express']
+    return members.map((member) => adminMemberSchema.parse(member))
+  }
 }
 
 export async function fetchAdminDashboardSummary(): Promise<AdminDashboardSummary> {
@@ -125,6 +243,81 @@ export async function fetchAdminDashboardSummary(): Promise<AdminDashboardSummar
     classesHeldTotal: 10,
     bookingsTotal: 56,
     noShowRatePercent: 70,
+  })
+}
+
+export async function fetchAdminZones(): Promise<AdminZone[]> {
+  const rows = await apiFetch<Array<{ id: string; name: string }>>('/zones')
+  return rows.map((item) => adminZoneSchema.parse(item))
+}
+
+export async function resolveAdminZoneId(input: {
+  zoneId: string | null
+  zoneName: string
+}): Promise<string> {
+  if (input.zoneId && !input.zoneId.startsWith('fallback:')) {
+    return input.zoneId
+  }
+
+  const zones = await fetchAdminZones()
+  const existing = zones.find(
+    (zone) => zone.name.toLowerCase() === input.zoneName.toLowerCase(),
+  )
+  if (existing) return existing.id
+
+  const created = await apiFetch<{ id: string; name: string }>('/zones', {
+    method: 'POST',
+    body: {
+      name: input.zoneName,
+      description: 'Auto-created from admin class form',
+      capacity: 60,
+    },
+  })
+  return created.id
+}
+
+export async function fetchAdminInstructors(): Promise<AdminInstructorOption[]> {
+  const rows = await apiFetch<
+    Array<{ id: string; firstName: string; lastName: string; email: string }>
+  >('/users/instructors')
+
+  return rows.map((item) =>
+    adminInstructorOptionSchema.parse({
+      id: item.id,
+      name: `${item.firstName} ${item.lastName}`.trim(),
+      email: item.email,
+    }),
+  )
+}
+
+export async function createAdminClass(input: {
+  title: string
+  description: string
+  level?: 'beginner' | 'pre_intermediate' | 'intermediate' | 'advanced'
+  focus?: Array<
+    | 'neck_shoulders'
+    | 'hips_opener'
+    | 'breathing_flow'
+    | 'lower_back_care'
+    | 'core_strength'
+    | 'posture_reset'
+    | 'stress_release'
+    | 'brain_refresh'
+  >
+  roomName: string
+  placeDescription: string
+  trainerId: string
+  zoneId: string
+  startsAt: string
+  endsAt: string
+  capacity: number
+}) {
+  return await apiFetch('/sessions', {
+    method: 'POST',
+    body: {
+      ...input,
+      type: 'group_class',
+    },
   })
 }
 

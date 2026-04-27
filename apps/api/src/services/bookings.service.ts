@@ -1,8 +1,17 @@
 import { db } from "../db/index.js";
 import { bookings, sessions, users, zones } from "@wellness/db";
-import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse, AdminBookingResponse } from "@wellness/types";
+import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse, AdminBookingResponse, BookingQrResponse } from "@wellness/types";
 import { eq, and, count, asc, desc, lt, gte, gt, inArray } from "drizzle-orm";
 import { enqueueStandbyPromotion } from "../jobs/standby-promotion.job.js";
+import { SignJWT } from "jose";
+import { env } from "../env.js";
+
+/** Statuses that mean the user already holds a slot or waitlist position for this session. */
+const BOOKING_STATUSES_BLOCKING_CREATE = [
+    "confirmed",
+    "standby",
+    "pending_confirmation",
+] as const;
 
 function toResponse(b: typeof bookings.$inferSelect): BookingResponse {
     return {
@@ -22,13 +31,16 @@ export async function createBooking(userId: string, sessionId: string): Promise<
         .where(eq(sessions.id, sessionId));
     if (!session) throw new Error("Session not found");
 
-    const [existing] = await db 
+    const [existing] = await db
         .select()
         .from(bookings)
-        .where(and(
-            eq(bookings.sessionId, sessionId),
-            eq(bookings.userId, userId)
-        ));
+        .where(
+            and(
+                eq(bookings.sessionId, sessionId),
+                eq(bookings.userId, userId),
+                inArray(bookings.status, [...BOOKING_STATUSES_BLOCKING_CREATE]),
+            ),
+        );
     if (existing) throw new Error("Booking already exists");
 
     const [{ confirmed }] = await db 
@@ -322,6 +334,36 @@ export async function hardDeleteBooking(bookingId: string): Promise<void> {
         throw new Error("Cannot delete active booking");
     }
     await db.delete(bookings).where(eq(bookings.id, bookingId));
+}
+
+export async function generateBookingQrToken(userId: string, bookingId: string): Promise<BookingQrResponse> {
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) throw new Error("Unauthorized");
+    if (booking.status !== "confirmed") throw new Error("Booking is not confirmed");
+
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, booking.sessionId));
+    if (!session) throw new Error("Session not found");
+
+    const expiresAt = new Date(session.endsAt.getTime() + 2 * 60 * 60 * 1000);
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    const token = await new SignJWT({
+        type: "qr_booking_checkin",
+        bookingId: booking.id,
+        sessionId: booking.sessionId,
+    })
+        .setProtectedHeader({ alg: "HS256" })
+        .setSubject(booking.userId)
+        .setIssuedAt()
+        .setExpirationTime(Math.floor(expiresAt.getTime() / 1000))
+        .sign(secret);
+
+    return {
+        token,
+        bookingId: booking.id,
+        sessionId: booking.sessionId,
+        expiresAt: expiresAt.toISOString(),
+    };
 }
 
 export async function listMyBookings(

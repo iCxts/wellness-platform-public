@@ -83,3 +83,24 @@ export async function getLatestCheckIn(userId: string): Promise<LatestCheckInRes
         checkInTime: row.checkInTime.toISOString(),
     };
 }
+
+export type InstructorOption = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+};
+
+export async function listInstructors(): Promise<InstructorOption[]> {
+    const rows = await db
+        .select({
+            id: users.id,
+            firstName: users.firstname,
+            lastName: users.lastname,
+            email: users.email,
+        })
+        .from(users)
+        .where(eq(users.role, "instructor"));
+
+    return rows;
+}

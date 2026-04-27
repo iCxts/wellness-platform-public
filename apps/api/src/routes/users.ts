@@ -11,6 +11,7 @@ import {
     updateAvatar,
     generateQrToken,
     getLatestCheckIn,
+    listInstructors,
 } from "../services/users.service.js";
 import { getProgress } from "../services/progress.service.js";
 import { registerDeviceToken } from "../services/push.service.js";
@@ -67,6 +68,12 @@ usersRouter.get("/me/checkin/latest", async (c) => {
     const result = await getLatestCheckIn(c.get("user").sub);
     if (!result) return c.json({ error: "No check-in found" }, 404);
     return c.json(result);
+});
+
+usersRouter.get("/instructors", async (c) => {
+    if (c.get("user").role !== "admin") return c.json({ error: "Forbidden" }, 403);
+    const instructors = await listInstructors();
+    return c.json(instructors);
 });
 
 usersRouter.get("/:memberId", async (c) => {

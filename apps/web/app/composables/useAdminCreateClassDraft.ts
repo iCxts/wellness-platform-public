@@ -6,12 +6,14 @@ export interface AdminCreateClassDraft {
   startTime: string
   endTime: string
   zone: string
+  zoneId: string | null
   room: string
   capacity: number
   intensity: string
   focus: string[]
   coverImageUrl: string
   instructorName: string
+  instructorId: string | null
   instructorExp: string
 }
 
@@ -24,6 +26,7 @@ const defaultDraft = (): AdminCreateClassDraft => ({
   startTime: '12:15',
   endTime: '13:00',
   zone: 'Wellness Center A',
+  zoneId: null,
   room: 'Room 3',
   capacity: 12,
   intensity: 'Beginner',
@@ -31,6 +34,7 @@ const defaultDraft = (): AdminCreateClassDraft => ({
   coverImageUrl:
     'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&w=900&q=80',
   instructorName: 'Kru Ploy',
+  instructorId: null,
   instructorExp: '8+ Years Exp',
 })
 

@@ -7,6 +7,7 @@ import {
   type InstructorWaitlistMember,
 } from '~/schemas/instructor'
 import { fetchAdminMembers } from '~/services/admin'
+import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -110,13 +111,72 @@ const waitlistBySessionSeed: Record<string, InstructorWaitlistMember[]> = {
 }
 
 export async function fetchInstructorSessions(): Promise<InstructorSession[]> {
-  await wait()
-  return instructorSessionsSeed.map((s) => instructorSessionSchema.parse(s))
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  const instructorId = auth.user.value?.id
+  if (!instructorId) {
+    await wait()
+    return instructorSessionsSeed.map((s) => instructorSessionSchema.parse(s))
+  }
+
+  try {
+    const sessions = await $fetch<
+      Array<{
+        id: string
+        title: string
+        startsAt: string
+        endsAt: string
+        placeDescription: string | null
+        roomName: string | null
+        capacity: number
+        spotsLeft: number
+        trainerId: string | null
+        imageUrl: string | null
+      }>
+    >('/sessions', {
+      baseURL: config.public.apiBase || 'http://localhost:3001',
+      headers: auth.token.value
+        ? { Authorization: `Bearer ${auth.token.value}` }
+        : undefined,
+    })
+
+    return sessions
+      .filter((item) => item.trainerId === instructorId)
+      .map((item) =>
+        instructorSessionSchema.parse({
+          id: item.id,
+          title: item.title,
+          startTime: new Date(item.startsAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }),
+          endTime: new Date(item.endsAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }),
+          dateLabel: new Date(item.startsAt).toLocaleDateString('en-US', {
+            day: 'numeric',
+            month: 'short',
+          }),
+          location: item.placeDescription ?? 'Wellness Center',
+          room: item.roomName ?? 'Room',
+          participants: Math.max(item.capacity - item.spotsLeft, 0),
+          capacity: item.capacity,
+          instructor: auth.user.value?.email.split('@')[0] ?? INSTRUCTOR_MOCK_NAME,
+          imageUrl: item.imageUrl ?? imgYoga1,
+        }),
+      )
+  } catch {
+    await wait()
+    return instructorSessionsSeed.map((s) => instructorSessionSchema.parse(s))
+  }
 }
 
 export async function fetchInstructorSessionById(id: string): Promise<InstructorSession> {
-  await wait()
-  const found = instructorSessionsSeed.find((s) => s.id === id) ?? instructorSessionsSeed[0]
+  const sessions = await fetchInstructorSessions()
+  const found = sessions.find((s) => s.id === id) ?? instructorSessionsSeed[0]
   return instructorSessionSchema.parse(found)
 }
 

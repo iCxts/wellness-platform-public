@@ -4,6 +4,7 @@ export const scheduleTabSchema = z.enum(['upcoming', 'history', 'waitlist'])
 
 export const scheduleItemSchema = z.object({
   id: z.string(),
+  bookingId: z.string().optional(),
   title: z.string(),
   dateLabel: z.string(),
   startTime: z.string(),

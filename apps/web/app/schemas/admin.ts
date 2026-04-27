@@ -39,3 +39,16 @@ export const adminDashboardSummarySchema = z.object({
 
 export type AdminDashboardSummary = z.infer<typeof adminDashboardSummarySchema>
 
+export const adminZoneSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+})
+export type AdminZone = z.infer<typeof adminZoneSchema>
+
+export const adminInstructorOptionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+})
+export type AdminInstructorOption = z.infer<typeof adminInstructorOptionSchema>
+

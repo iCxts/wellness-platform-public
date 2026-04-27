@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { JwtPayload } from "../middleware/auth.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { createBooking, cancelBooking, listMyBookings, listMyBookingsWithSession, getBookingDetail, confirmBooking, listAllBookings, hardDeleteBooking } from "../services/bookings.service.js";
+import { createBooking, cancelBooking, listMyBookings, listMyBookingsWithSession, getBookingDetail, confirmBooking, listAllBookings, hardDeleteBooking, generateBookingQrToken } from "../services/bookings.service.js";
 
 const bookings = new Hono<{ Variables: { user: JwtPayload}}>();
 
@@ -51,6 +51,18 @@ bookings.post("/", zValidator("json", createBookingSchema), async(c) => {
 bookings.get("/:id", async(c) => {
     try {
         const data = await getBookingDetail(c.get("user").sub, c.req.param("id"));
+        return c.json(data);
+    } catch (err) {
+        const msg = (err as Error).message;
+        if (msg === "Unauthorized") return c.json({ error: msg }, 403);
+        if (msg === "Booking not found") return c.json({ error: msg }, 404);
+        return c.json({ error: msg }, 400);
+    }
+});
+
+bookings.get("/:id/qr", async(c) => {
+    try {
+        const data = await generateBookingQrToken(c.get("user").sub, c.req.param("id"));
         return c.json(data);
     } catch (err) {
         const msg = (err as Error).message;

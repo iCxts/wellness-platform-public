@@ -1,4 +1,5 @@
 import { classItemSchema, type ClassItem, type ExploreFilter } from '~/schemas/explore'
+import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -324,14 +325,172 @@ const classesSeed: ClassItem[] = [
   },
 ]
 
+const defaultTrainerAvatar =
+  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=240&h=240&q=80'
+const fallbackHeroImage =
+  classesSeed[0]?.heroImage ??
+  'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&w=900&q=80'
+
+const levelMap: Record<string, 'Beginner' | 'Intermediate' | 'Advanced'> = {
+  beginner: 'Beginner',
+  pre_intermediate: 'Intermediate',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+}
+
+const focusMap: Record<string, string> = {
+  neck_shoulders: 'Neck & Shoulders',
+  hips_opener: 'Hips Opener',
+  breathing_flow: 'Breathing Flow',
+  lower_back_care: 'Lower Back',
+  core_strength: 'Core',
+  posture_reset: 'Posture Reset',
+  stress_release: 'Stress Release',
+  brain_refresh: 'Brain Refresh',
+}
+
+const toTimeLabel = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+const toDateLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).toUpperCase()
+
+const toCategory = (title: string, type: string): ExploreFilter => {
+  const source = `${title} ${type}`.toLowerCase()
+  if (source.includes('hiit') || source.includes('strength')) return 'HIIT & Strength'
+  if (source.includes('dance') || source.includes('cardio')) return 'Cardio & Dance'
+  if (source.includes('stretch') || source.includes('mobility')) return 'Stretching'
+  return 'Yoga & Pilates'
+}
+
+const apiFetch = async <T>(path: string) => {
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  return await $fetch<T>(path, {
+    baseURL: config.public.apiBase || 'http://localhost:3001',
+    headers: auth.token.value
+      ? { Authorization: `Bearer ${auth.token.value}` }
+      : undefined,
+  })
+}
+
+async function fetchExploreClassesFromApi(): Promise<ClassItem[]> {
+  const sessions = await apiFetch<
+    Array<{
+      id: string
+      title: string
+      type: string
+      level: string | null
+      focus: string[] | null
+      imageUrl: string | null
+      roomName: string | null
+      placeDescription: string | null
+      startsAt: string
+      endsAt: string
+      spotsLeft: number
+      trainerId?: string | null
+    }>
+  >('/sessions')
+
+  return sessions.map((item) =>
+    classItemSchema.parse({
+      id: item.id,
+      title: item.title,
+      startTime: toTimeLabel(item.startsAt),
+      endTime: toTimeLabel(item.endsAt),
+      durationMin: Math.max(
+        1,
+        Math.round(
+          (new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60000,
+        ),
+      ),
+      location: item.placeDescription ?? 'Wellness Center',
+      room: item.roomName ?? 'Room',
+      dateLabel: toDateLabel(item.startsAt),
+      trainer: 'Instructor',
+      trainerExp: 'Certified Coach',
+      trainerQuote: 'Guided session tailored to your progress.',
+      trainerAvatar: defaultTrainerAvatar,
+      trainerFlagEmoji: '🇹🇭',
+      heroImage: item.imageUrl ?? fallbackHeroImage,
+      level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
+      slotsLeft: Math.max(item.spotsLeft, 0),
+      status: item.spotsLeft > 0 ? 'available' : 'full',
+      focus:
+        item.focus?.map((focus) => focusMap[focus] ?? focus).filter(Boolean) ?? ['General'],
+      category: toCategory(item.title, item.type),
+    }),
+  )
+}
+
 export async function fetchExploreClasses(filter: ExploreFilter): Promise<ClassItem[]> {
   await wait()
-  const data = filter === 'All' ? classesSeed : classesSeed.filter((c) => c.category === filter)
-  return data.map((item) => classItemSchema.parse(item))
+  const seeded = classesSeed.map((item) => classItemSchema.parse(item))
+
+  try {
+    const fromApi = await fetchExploreClassesFromApi()
+    const merged = [...fromApi, ...seeded]
+    return filter === 'All' ? merged : merged.filter((c) => c.category === filter)
+  } catch {
+    return filter === 'All' ? seeded : seeded.filter((c) => c.category === filter)
+  }
 }
 
 export async function fetchClassById(id: string): Promise<ClassItem> {
   await wait()
-  const found = classesSeed.find((c) => c.id === id) ?? classesSeed[0]
-  return classItemSchema.parse(found)
+  const seeded = classesSeed.find((c) => c.id === id)
+  if (seeded) return classItemSchema.parse(seeded)
+
+  try {
+    const item = await apiFetch<{
+      id: string
+      title: string
+      type: string
+      level: string | null
+      focus: string[] | null
+      imageUrl: string | null
+      roomName: string | null
+      placeDescription: string | null
+      startsAt: string
+      endsAt: string
+      spotsLeft: number
+    }>(`/sessions/${id}`)
+
+    return classItemSchema.parse({
+      id: item.id,
+      title: item.title,
+      startTime: toTimeLabel(item.startsAt),
+      endTime: toTimeLabel(item.endsAt),
+      durationMin: Math.max(
+        1,
+        Math.round(
+          (new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60000,
+        ),
+      ),
+      location: item.placeDescription ?? 'Wellness Center',
+      room: item.roomName ?? 'Room',
+      dateLabel: toDateLabel(item.startsAt),
+      trainer: 'Instructor',
+      trainerExp: 'Certified Coach',
+      trainerQuote: 'Guided session tailored to your progress.',
+      trainerAvatar: defaultTrainerAvatar,
+      trainerFlagEmoji: '🇹🇭',
+      heroImage: item.imageUrl ?? fallbackHeroImage,
+      level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
+      slotsLeft: Math.max(item.spotsLeft, 0),
+      status: item.spotsLeft > 0 ? 'available' : 'full',
+      focus:
+        item.focus?.map((focus) => focusMap[focus] ?? focus).filter(Boolean) ?? ['General'],
+      category: toCategory(item.title, item.type),
+    })
+  } catch {
+    return classItemSchema.parse(classesSeed[0])
+  }
 }

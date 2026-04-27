@@ -6,13 +6,13 @@ defineProps<{ booking: Booking }>()
 
 <template>
   <article
-    class="group flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white shadow-card-lg transition-transform hover:-translate-y-1"
+    class="group flex h-full w-full flex-col overflow-hidden rounded-3xl bg-white shadow-card-lg"
   >
     <div class="relative h-24 md:h-36">
       <img
         :src="booking.imageUrl"
         :alt="booking.title"
-        class="h-full w-full object-cover"
+        class="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04] group-active:scale-[1.04]"
       />
       <span
         class="absolute left-2 top-1/2 -translate-y-1/2 rounded-l-md bg-[var(--bw-orange)] px-2 py-1 text-[10px] font-semibold text-white md:text-xs"

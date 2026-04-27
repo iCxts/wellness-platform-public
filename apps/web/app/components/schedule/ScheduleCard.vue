@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { useQueryClient } from '@tanstack/vue-query'
 import type { ScheduleItem } from '~/schemas/schedule'
+import { cancelBooking } from '~/services/bookings'
 
 const props = defineProps<{
   item: ScheduleItem
 }>()
+const router = useRouter()
+const queryClient = useQueryClient()
 
 const showPrimary = computed(() => props.item.status === 'booked')
 const primaryLabel = computed(() => {
@@ -11,6 +15,74 @@ const primaryLabel = computed(() => {
   if (props.item.status === 'waitlisted') return 'Leave Waitlist'
   return 'My Booking'
 })
+
+const cancelling = ref(false)
+const actionMessage = ref('')
+
+const invalidateAfterBookingChange = async () => {
+  await queryClient.invalidateQueries({ queryKey: ['schedule'] })
+  await queryClient.invalidateQueries({ queryKey: ['explore'] })
+}
+
+const onPrimary = async () => {
+  if (props.item.status === 'booked' && props.item.bookingId) {
+    await router.push(`/booking-success?bookingId=${props.item.bookingId}&id=${props.item.id}`)
+    return
+  }
+
+  if (props.item.status === 'waitlisted' && props.item.bookingId) {
+    actionMessage.value = ''
+    if (!confirm('Leave the waitlist for this class?')) return
+    cancelling.value = true
+    try {
+      await cancelBooking(props.item.bookingId)
+      await invalidateAfterBookingChange()
+    } catch (error) {
+      const msg =
+        (error as { data?: { error?: string } })?.data?.error ??
+        (error instanceof Error ? error.message : 'Could not leave waitlist.')
+      actionMessage.value = msg
+    } finally {
+      cancelling.value = false
+    }
+  }
+}
+
+const onSecondary = async () => {
+  actionMessage.value = ''
+  if (props.item.status === 'completed') {
+    await router.push(`/class/${props.item.id}`)
+    return
+  }
+
+  if (!props.item.bookingId) {
+    actionMessage.value = 'This entry has no linked booking to cancel.'
+    return
+  }
+
+  if (
+    !confirm(
+      props.item.status === 'waitlisted'
+        ? 'Leave the waitlist for this class?'
+        : 'Cancel this booking?',
+    )
+  ) {
+    return
+  }
+
+  cancelling.value = true
+  try {
+    await cancelBooking(props.item.bookingId)
+    await invalidateAfterBookingChange()
+  } catch (error) {
+    const msg =
+      (error as { data?: { error?: string } })?.data?.error ??
+      (error instanceof Error ? error.message : 'Could not cancel.')
+    actionMessage.value = msg
+  } finally {
+    cancelling.value = false
+  }
+}
 </script>
 
 <template>
@@ -47,17 +119,31 @@ const primaryLabel = computed(() => {
           </div>
         </div>
 
+        <p v-if="actionMessage" class="mt-2 text-xs text-[#c20000]">
+          {{ actionMessage }}
+        </p>
+
         <div class="mt-3 flex gap-2">
           <button
             type="button"
-            class="h-[31px] flex-1 rounded-xl border border-[#666666] text-sm font-medium text-[#666666]"
+            class="h-[31px] flex-1 rounded-xl border border-[#666666] text-sm font-medium text-[#666666] disabled:opacity-50"
+            :disabled="cancelling"
+            @click="onSecondary"
           >
-            {{ item.status === 'completed' ? 'Detail' : 'Cancel' }}
+            {{
+              cancelling
+                ? '…'
+                : item.status === 'completed'
+                  ? 'Detail'
+                  : 'Cancel'
+            }}
           </button>
           <button
             v-if="showPrimary || item.status !== 'completed'"
             type="button"
-            class="h-[31px] flex-1 rounded-xl bg-[var(--bw-orange)] text-sm font-medium text-white"
+            class="h-[31px] flex-1 rounded-xl bg-[var(--bw-orange)] text-sm font-medium text-white disabled:opacity-50"
+            :disabled="cancelling"
+            @click="onPrimary"
           >
             {{ primaryLabel }}
           </button>

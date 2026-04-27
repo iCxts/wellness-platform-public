@@ -1,10 +1,13 @@
 import { computed, type Ref } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
+  createAdminClass,
   fetchAdminDashboardSummary,
+  fetchAdminInstructors,
   fetchAdminMembers,
   fetchAdminSessionById,
   fetchAdminSessions,
+  fetchAdminZones,
 } from '~/services/admin'
 
 export const adminQueryKeys = {
@@ -12,6 +15,8 @@ export const adminQueryKeys = {
   session: (id: string) => ['admin', 'session', id] as const,
   members: (sessionId: string) => ['admin', 'members', sessionId] as const,
   dashboard: ['admin', 'dashboard'] as const,
+  zones: ['admin', 'zones'] as const,
+  instructors: ['admin', 'instructors'] as const,
 }
 
 export const useAdminSessions = () =>
@@ -37,4 +42,29 @@ export const useAdminDashboardSummary = () =>
     queryKey: adminQueryKeys.dashboard,
     queryFn: fetchAdminDashboardSummary,
   })
+
+export const useAdminZones = () =>
+  useQuery({
+    queryKey: adminQueryKeys.zones,
+    queryFn: fetchAdminZones,
+  })
+
+export const useAdminInstructors = () =>
+  useQuery({
+    queryKey: adminQueryKeys.instructors,
+    queryFn: fetchAdminInstructors,
+  })
+
+export const useCreateAdminClass = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createAdminClass,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminQueryKeys.sessions }),
+        queryClient.invalidateQueries({ queryKey: ['instructor', 'sessions'] }),
+      ])
+    },
+  })
+}
 

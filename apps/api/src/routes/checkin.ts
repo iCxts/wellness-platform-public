@@ -26,8 +26,14 @@ checkin.post("/", zValidator("json", checkInSchema), async (c) => {
     try {
         const secret = new TextEncoder().encode(env.JWT_SECRET);
         const { payload } = await jwtVerify(memberToken, secret);
-        if (payload["type"] !== "qr_checkin")
+        const tokenType = payload["type"];
+        if (tokenType !== "qr_checkin" && tokenType !== "qr_booking_checkin") {
             return c.json({ error: "Invalid QR token" }, 401);
+        }
+
+        if (tokenType === "qr_booking_checkin" && payload["sessionId"] !== sessionId) {
+            return c.json({ error: "QR does not match this class session" }, 400);
+        }
 
         const memberId = payload.sub as string;
         const result = await checkIn(memberId, sessionId);

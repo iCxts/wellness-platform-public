@@ -1,10 +1,46 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
+import QRCode from 'qrcode'
+import { fetchBookingQr } from '~/services/bookings'
 definePageMeta({ ssr: false })
 
 const route = useRoute()
 const id = computed(() => String(route.query.id ?? 'hatha-stretch'))
+const bookingId = computed(() => String(route.query.bookingId ?? ''))
 const { data: classItem } = useClassDetail(id)
+const auth = useAuth()
+const qrDataUrl = ref('')
+const qrError = ref('')
+const isQrLoading = ref(false)
+
+const loadBookingQr = async () => {
+  qrError.value = ''
+  qrDataUrl.value = ''
+  if (!bookingId.value) {
+    qrError.value = 'Booking QR is unavailable for this item.'
+    return
+  }
+  try {
+    isQrLoading.value = true
+    const payload = await fetchBookingQr(bookingId.value)
+    qrDataUrl.value = await QRCode.toDataURL(payload.token, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 228,
+    })
+  } catch (error) {
+    qrError.value =
+      (error as { data?: { error?: string } })?.data?.error ??
+      'Unable to load QR. Please refresh.'
+  } finally {
+    isQrLoading.value = false
+  }
+}
+
+onMounted(() => {
+  auth.hydrate()
+  loadBookingQr()
+})
 </script>
 
 <template>
@@ -27,11 +63,15 @@ const { data: classItem } = useClassDetail(id)
       </Motion>
 
       <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.1 }" class="space-y-2">
-        <h1 class="text-[28px] font-semibold leading-tight">You’re all set, PEAR!</h1>
+        <h1 class="text-[28px] font-semibold leading-tight">You’re all set, {{ auth.user.value?.email?.split('@')[0] ?? 'Member' }}!</h1>
         <p class="text-[12px]">Scan the QR code in the class to join</p>
       </Motion>
       <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.15 }">
-        <img src="https://www.figma.com/api/mcp/asset/a03cd1c8-5f11-471c-9012-75f321d98923" alt="QR Code" class="mx-auto h-[228px] w-[228px] rounded-2xl object-cover" />
+        <div v-if="isQrLoading" class="mx-auto h-[228px] w-[228px] animate-pulse rounded-2xl bg-white/70" />
+        <img v-else-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="mx-auto h-[228px] w-[228px] rounded-2xl bg-white p-2 object-contain" />
+        <div v-else class="mx-auto flex h-[228px] w-[228px] items-center justify-center rounded-2xl bg-white px-4 text-center text-xs text-[#c20000]">
+          {{ qrError || 'QR unavailable' }}
+        </div>
       </Motion>
       <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.2 }" class="space-y-2">
         <p class="text-[12px] font-semibold">Show this QR to staff to join any class.</p>

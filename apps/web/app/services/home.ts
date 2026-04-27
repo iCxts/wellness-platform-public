@@ -60,7 +60,7 @@ export async function fetchNextSession(): Promise<NextSession> {
     subtitle: 'Your Next Session',
     startsInMinutes: 120,
     imageUrl:
-      'https://www.figma.com/api/mcp/asset/22377b52-159d-4e36-8ade-0a08516b2b06',
+      'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&w=1400&q=90',
   })
 }
 

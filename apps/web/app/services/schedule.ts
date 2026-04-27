@@ -3,6 +3,7 @@ import {
   type ScheduleItem,
   type ScheduleTab,
 } from '~/schemas/schedule'
+import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 220) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -99,7 +100,55 @@ const scheduleSeed: ScheduleItem[] = [
 
 export async function fetchScheduleByTab(tab: ScheduleTab): Promise<ScheduleItem[]> {
   await wait()
-  return scheduleSeed
-    .filter((item) => item.tab === tab)
-    .map((item) => scheduleItemSchema.parse(item))
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+
+  try {
+    const rows = await $fetch<
+      Array<{
+        bookingId: string
+        sessionId: string
+        title: string
+        startsAt: string
+        endsAt: string
+        status: 'confirmed' | 'standby' | 'cancelled' | 'no_show' | 'attended' | 'pending_confirmation'
+      }>
+    >('/bookings/me', {
+      baseURL: config.public.apiBase || 'http://localhost:3001',
+      headers: auth.token.value
+        ? { Authorization: `Bearer ${auth.token.value}` }
+        : undefined,
+      query: { tab },
+    })
+
+    return rows.map((item) =>
+      scheduleItemSchema.parse({
+        id: item.sessionId,
+        bookingId: item.bookingId,
+        title: item.title,
+        dateLabel: new Date(item.startsAt).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        startTime: new Date(item.startsAt).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+        endTime: new Date(item.endsAt).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+        location: 'Wellness Center',
+        trainer: 'Instructor',
+        tab,
+        status: tab === 'history' ? 'completed' : tab === 'waitlist' ? 'waitlisted' : 'booked',
+      }),
+    )
+  } catch {
+    return scheduleSeed
+      .filter((item) => item.tab === tab)
+      .map((item) => scheduleItemSchema.parse(item))
+  }
 }
