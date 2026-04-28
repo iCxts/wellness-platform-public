@@ -53,6 +53,13 @@ const mainMemberCount = computed(() => members.value?.length ?? 0)
         <Icon name="ph:map-pin-area" class="h-6 w-6" />
         {{ session?.location }} / {{ session?.room }}
       </p>
+      <NuxtLink
+        :to="`/check-in?sessionId=${sessionId}`"
+        class="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--bw-orange)] px-4 text-sm font-semibold text-white"
+      >
+        <Icon name="ph:qr-code" class="h-5 w-5" />
+        Scan QR for this class
+      </NuxtLink>
 
       <div
         class="hidden grid-cols-[1.4fr_1fr_0.8fr] border-b border-black/10 px-2 pb-2 text-sm font-medium md:grid"

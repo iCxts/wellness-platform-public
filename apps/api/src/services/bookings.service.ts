@@ -107,11 +107,11 @@ export async function listMyBookingsWithSession(
         upcoming: [
             eq(bookings.userId, userId),
             eq(bookings.status, "confirmed"),
-            gt(sessions.startsAt, now),
+            gt(sessions.endsAt, now),
         ],
         history: [
             eq(bookings.userId, userId),
-            lt(sessions.startsAt, now),
+            eq(bookings.status, "attended"),
         ],
         waitlist: [
             eq(bookings.userId, userId),

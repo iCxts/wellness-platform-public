@@ -16,6 +16,26 @@ type BookingQrResponse = {
   expiresAt: string
 }
 
+export type BookingDetailResponse = {
+  bookingId: string
+  status: 'confirmed' | 'standby' | 'cancelled' | 'no_show' | 'attended' | 'pending_confirmation'
+  standbyPosition: number | null
+  createdAt: string
+  session: {
+    id: string
+    title: string
+    startsAt: string
+    endsAt: string
+    roomName: string | null
+    placeDescription: string | null
+  }
+  instructor: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+}
+
 const apiFetch = async <T>(path: string, options: Parameters<typeof $fetch<T>>[1] = {}) => {
   const auth = useAuth()
   const config = useRuntimeConfig()
@@ -37,6 +57,10 @@ export async function createBooking(sessionId: string): Promise<BookingCreateRes
 
 export async function fetchBookingQr(bookingId: string): Promise<BookingQrResponse> {
   return await apiFetch<BookingQrResponse>(`/bookings/${bookingId}/qr`)
+}
+
+export async function fetchBookingDetail(bookingId: string): Promise<BookingDetailResponse> {
+  return await apiFetch<BookingDetailResponse>(`/bookings/${bookingId}`)
 }
 
 export async function cancelBooking(bookingId: string): Promise<void> {

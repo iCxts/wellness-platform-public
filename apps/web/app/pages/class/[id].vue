@@ -5,6 +5,8 @@ definePageMeta({ ssr: false })
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuth()
+const config = useRuntimeConfig()
 const id = computed(() => String(route.params.id ?? 'morning-reset'))
 const mode = computed(() =>
   route.query.mode === 'queue' ? 'queue' : 'booking',
@@ -12,28 +14,148 @@ const mode = computed(() =>
 const { data: classItem, isPending } = useClassDetail(id)
 const actionError = ref('')
 const isSubmitting = ref(false)
+const createdBookingStatus = ref<'confirmed' | 'standby' | null>(null)
+const bookingStatusWatchKey = computed(
+  () => `${id.value}:${auth.user.value?.id ?? 'guest'}:${auth.token.value ?? ''}`,
+)
+
+const {
+  data: existingBookingStatus,
+  pending: checkingExistingBooking,
+  refresh: refreshExistingBookingStatus,
+} =
+  useAsyncData(
+    () => `class-booking-status-${id.value}-${auth.user.value?.id ?? 'guest'}`,
+    async () => {
+      if (!auth.token.value) return null
+      const allBookings = await $fetch<
+        Array<{
+          sessionId: string
+          status:
+            | 'confirmed'
+            | 'standby'
+            | 'cancelled'
+            | 'no_show'
+            | 'attended'
+            | 'pending_confirmation'
+          createdAt: string
+        }>
+      >('/bookings/me', {
+        baseURL: config.public.apiBase || 'http://localhost:3001',
+        headers: { Authorization: `Bearer ${auth.token.value}` },
+      })
+
+      const matching = allBookings
+        .filter((item) => item.sessionId === id.value)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )
+
+      if (matching.length === 0) return null
+      if (
+        matching.some((item) =>
+          ['standby', 'pending_confirmation'].includes(item.status),
+        )
+      ) {
+        return 'waitlisted' as const
+      }
+      if (
+        matching.some((item) =>
+          ['confirmed', 'attended'].includes(item.status),
+        )
+      ) {
+        return 'booked' as const
+      }
+      if (
+        matching.every((item) =>
+          ['cancelled', 'no_show'].includes(item.status),
+        )
+      ) {
+        return null
+      }
+      const active = matching.find((item) => item.status !== 'cancelled')
+      if (active?.status === 'standby' || active?.status === 'pending_confirmation') {
+        return 'waitlisted' as const
+      }
+      if (active?.status === 'confirmed' || active?.status === 'attended') {
+        return 'booked' as const
+      }
+      const latest = matching[0]
+      if (!latest) return null
+      if (
+        ['standby', 'pending_confirmation'].includes(latest.status)
+      ) {
+        return 'waitlisted' as const
+      }
+      if (
+        ['confirmed', 'attended'].includes(latest.status)
+      ) {
+        return 'booked' as const
+      }
+
+      return null
+    },
+    {
+      server: false,
+      default: () => null,
+      watch: [bookingStatusWatchKey],
+    },
+  )
+const isClassFull = computed(() => (classItem.value?.slotsLeft ?? 0) <= 0)
+const effectiveMode = computed(() =>
+  isClassFull.value || mode.value === 'queue' ? 'queue' : 'booking',
+)
+const hasExistingBooking = computed(
+  () =>
+    existingBookingStatus.value === 'booked' ||
+    existingBookingStatus.value === 'waitlisted' ||
+    createdBookingStatus.value === 'confirmed' ||
+    createdBookingStatus.value === 'standby',
+)
+const isAlreadyBooked = computed(
+  () =>
+    existingBookingStatus.value === 'booked' ||
+    createdBookingStatus.value === 'confirmed',
+)
+const isAlreadyWaitlisted = computed(
+  () =>
+    existingBookingStatus.value === 'waitlisted' ||
+    createdBookingStatus.value === 'standby',
+)
 
 const ctaLabel = computed(() =>
-  mode.value === 'queue' ? 'Join Queue' : 'Book now',
+  checkingExistingBooking.value && Boolean(auth.token.value)
+    ? 'Checking...'
+    : isAlreadyBooked.value
+    ? 'Already booked'
+    : isAlreadyWaitlisted.value
+      ? 'On waitlist'
+      : effectiveMode.value === 'queue'
+        ? 'Join Queue'
+        : 'Book now',
 )
 const ctaClass = computed(() =>
-  mode.value === 'queue'
+  hasExistingBooking.value
+    ? 'bg-[#9d9c9c] text-white'
+    : effectiveMode.value === 'queue'
     ? 'border border-[var(--bw-orange)] bg-white text-[var(--bw-orange)]'
     : 'bg-[var(--bw-orange)] text-white',
 )
 
 const onPrimary = async () => {
   if (isSubmitting.value) return
+  if (checkingExistingBooking.value && auth.token.value) return
+  if (hasExistingBooking.value) return
   actionError.value = ''
-  if (mode.value === 'queue') {
-    await router.push(`/queue-success?id=${id.value}`)
-    return
-  }
   try {
     isSubmitting.value = true
     const booking = await createBooking(id.value)
+    createdBookingStatus.value =
+      booking.status === 'standby' ? 'standby' : 'confirmed'
+    await refreshExistingBookingStatus()
     if (booking.status === 'standby') {
-      await router.push(`/queue-success?id=${id.value}`)
+      await router.push(`/queue-success?id=${id.value}&bookingId=${booking.id}`)
       return
     }
     await router.push(`/booking-success?id=${id.value}&bookingId=${booking.id}`)
@@ -151,7 +273,7 @@ const onPrimary = async () => {
         class="text-[12px] leading-[1.4]"
       >
         {{
-          mode === 'queue'
+          effectiveMode === 'queue'
             ? 'This dynamic intermediate session syncs breath with movement to undo the desk hunch. Reset your posture, strengthen your core, and leave feeling taller and recharged for the afternoon.'
             : 'Undo the damage of your desk chair. A 45-minute flow targeting neck, shoulder, and back tension to leave you feeling taller, realigned, and recharged to tackle the rest of your workday with clarity.'
         }}
@@ -196,7 +318,7 @@ const onPrimary = async () => {
               <p class="text-[10px]">{{ classItem.trainerExp }}</p>
               <p class="mt-2 text-[10px]">
                 {{
-                  mode === 'queue'
+                  effectiveMode === 'queue'
                     ? '"Let\'s turn your workday stress into graceful energy. Expect a challenge but always with a smile! See you on the mat."'
                     : '"Let\'s melt away that desk tension together and recharge your energy for a brilliant afternoon"'
                 }}
@@ -214,10 +336,18 @@ const onPrimary = async () => {
         <button
           class="h-[55px] w-full rounded-[20px] text-[16px] font-semibold"
           :class="ctaClass"
+          :disabled="hasExistingBooking || isSubmitting || (checkingExistingBooking && !!auth.token)"
           @click="onPrimary"
         >
           {{ ctaLabel }}
         </button>
+        <NuxtLink
+          v-if="hasExistingBooking"
+          to="/schedule"
+          class="mt-3 flex h-[46px] w-full items-center justify-center rounded-[16px] border border-[var(--bw-orange)] text-[14px] font-semibold text-[var(--bw-orange)]"
+        >
+          Go to my schedule
+        </NuxtLink>
         <p v-if="actionError" class="mt-2 text-sm text-[#c20000]">
           {{ actionError }}
         </p>

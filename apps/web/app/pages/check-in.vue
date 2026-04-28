@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
+import { useQueryClient } from '@tanstack/vue-query'
+import { checkInByQrToken } from '~/services/instructor'
+import { instructorQueryKeys } from '~/composables/useInstructor'
 
 definePageMeta({ ssr: false })
 
@@ -11,12 +14,16 @@ interface BarcodeDetectorLike {
 }
 
 const router = useRouter()
+const route = useRoute()
+const queryClient = useQueryClient()
 const activeTab = ref<ScanTab>('check-in')
 const scanState = ref<ScanState>('idle')
 const errorMessage = ref('')
 const scannedCode = ref('')
 const cameraReady = ref(false)
 const shouldFlipPreview = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const isSubmitting = ref(false)
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 let stream: MediaStream | null = null
@@ -37,6 +44,32 @@ const goBack = async () => {
   await router.push('/')
 }
 
+const parsePayload = (token: string): Record<string, unknown> | null => {
+  const parts = token.split('.')
+  const payloadPart = parts[1]
+  if (!payloadPart) return null
+  try {
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`)
+        .join(''),
+    )
+    return JSON.parse(json) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+const resolveSessionIdForCheckIn = (token: string): string | null => {
+  const querySessionId = String(route.query.sessionId ?? '')
+  if (querySessionId) return querySessionId
+  const payload = parsePayload(token)
+  const tokenSession = payload?.sessionId
+  return typeof tokenSession === 'string' ? tokenSession : null
+}
+
 const stopScanner = () => {
   if (rafId !== null) {
     cancelAnimationFrame(rafId)
@@ -50,19 +83,48 @@ const stopScanner = () => {
 }
 
 const handleScanned = async (value: string) => {
+  if (isSubmitting.value) return
   scanState.value = 'scanned'
   scannedCode.value = value
   stopScanner()
 
-  await nextTick()
-  const target =
-    activeTab.value === 'check-in'
-      ? `/check-in-success?code=${encodeURIComponent(value)}`
-      : `/check-out-success?code=${encodeURIComponent(value)}`
+  if (activeTab.value !== 'check-in') {
+    await nextTick()
+    setTimeout(() => {
+      router.push(`/check-out-success?code=${encodeURIComponent(value)}`)
+    }, 350)
+    return
+  }
 
-  setTimeout(() => {
-    router.push(target)
-  }, 350)
+  const sessionId = resolveSessionIdForCheckIn(value)
+  if (!sessionId) {
+    scanState.value = 'error'
+    errorMessage.value =
+      'QR token does not include a session. Open scanner from class members page.'
+    return
+  }
+
+  try {
+    isSubmitting.value = true
+    const result = await checkInByQrToken({ sessionId, memberToken: value })
+    await queryClient.invalidateQueries({
+      queryKey: instructorQueryKeys.members(sessionId),
+    })
+    await queryClient.invalidateQueries({
+      queryKey: instructorQueryKeys.waitlist(sessionId),
+    })
+    await router.push(
+      `/check-in-success?code=${encodeURIComponent(value)}&sessionId=${encodeURIComponent(sessionId)}&memberName=${encodeURIComponent(result.memberName)}&className=${encodeURIComponent(result.className)}&checkInTime=${encodeURIComponent(result.checkInTime)}`,
+    )
+  } catch (error) {
+    scanState.value = 'error'
+    errorMessage.value =
+      (error as { data?: { error?: string } })?.data?.error ??
+      (error instanceof Error ? error.message : 'Check-in failed.')
+    startScanner()
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const scanLoop = async (ts: number) => {
@@ -90,6 +152,7 @@ const startScanner = async () => {
   if (!import.meta.client) return
 
   stopScanner()
+  if (isSubmitting.value) return
   errorMessage.value = ''
   scannedCode.value = ''
   scanState.value = 'requesting'
@@ -147,6 +210,46 @@ const startScanner = async () => {
   }
 }
 
+const openImagePicker = () => {
+  fileInputRef.value?.click()
+}
+
+const onPickImage = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  input.value = ''
+
+  if (!('BarcodeDetector' in window)) {
+    scanState.value = 'error'
+    errorMessage.value = 'QR image scanning is not supported in this browser yet.'
+    return
+  }
+
+  try {
+    errorMessage.value = ''
+    scanState.value = 'requesting'
+    const BarcodeDetectorCtor = window.BarcodeDetector as new (options?: {
+      formats: string[]
+    }) => BarcodeDetectorLike
+    const imageDetector = new BarcodeDetectorCtor({ formats: ['qr_code'] })
+    const bitmap = await createImageBitmap(file)
+    const codes = await imageDetector.detect(bitmap)
+    bitmap.close()
+    const qr = codes.find((entry) => entry.rawValue)?.rawValue
+    if (!qr) {
+      scanState.value = 'error'
+      errorMessage.value = 'No QR code found in selected image.'
+      return
+    }
+    await handleScanned(qr)
+  } catch (error) {
+    scanState.value = 'error'
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Unable to read selected image.'
+  }
+}
+
 watch(activeTab, () => {
   startScanner()
 })
@@ -196,6 +299,8 @@ onBeforeUnmount(() => {
           </button>
           <button
             class="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur-sm"
+            type="button"
+            @click="openImagePicker"
           >
             <Icon name="ph:image" class="h-5 w-5" />
           </button>
@@ -282,5 +387,12 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="onPickImage"
+    >
   </div>
 </template>

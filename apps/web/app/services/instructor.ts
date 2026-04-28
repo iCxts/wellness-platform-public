@@ -6,7 +6,6 @@ import {
   type InstructorSession,
   type InstructorWaitlistMember,
 } from '~/schemas/instructor'
-import { fetchAdminMembers } from '~/services/admin'
 import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -110,6 +109,39 @@ const waitlistBySessionSeed: Record<string, InstructorWaitlistMember[]> = {
   ],
 }
 
+const fallbackMemberAvatars = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=96&h=96&q=80',
+  'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=facearea&facepad=2&w=96&h=96&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=96&h=96&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2&w=96&h=96&q=80',
+]
+
+const memberPlaceholderSeed: InstructorMember[] = [
+  {
+    id: 'placeholder-member-1',
+    name: 'Placeholder Member',
+    email: 'placeholder.member@bwell.local',
+    checkInTime: null,
+    status: 'pending',
+    avatarUrl: fallbackMemberAvatars[0],
+  },
+]
+
+const apiFetch = async <T>(
+  path: string,
+  options: Parameters<typeof $fetch<T>>[1] = {},
+) => {
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  return await $fetch<T>(path, {
+    baseURL: config.public.apiBase || 'http://localhost:3001',
+    headers: auth.token.value
+      ? { Authorization: `Bearer ${auth.token.value}` }
+      : undefined,
+    ...options,
+  })
+}
+
 export async function fetchInstructorSessions(): Promise<InstructorSession[]> {
   const auth = useAuth()
   const config = useRuntimeConfig()
@@ -182,17 +214,114 @@ export async function fetchInstructorSessionById(id: string): Promise<Instructor
 
 export async function fetchInstructorMembers(_sessionId: string): Promise<InstructorMember[]> {
   await wait()
-  const fromAdmin = await fetchAdminMembers('yoga-express')
-  return fromAdmin.map((m, i) => {
-    if (i === 0 && m.id === 'pear') {
-      return instructorMemberSchema.parse({ ...m, email: 'pear.s@bgrimm.com' })
-    }
-    return instructorMemberSchema.parse(m)
-  })
+  try {
+    const rows = await apiFetch<
+      Array<{
+        id: string
+        status:
+          | 'confirmed'
+          | 'standby'
+          | 'cancelled'
+          | 'no_show'
+          | 'attended'
+          | 'pending_confirmation'
+        createdAt: string
+        user: {
+          id: string
+          firstName: string
+          lastName: string
+          email: string
+        }
+      }>
+    >(`/sessions/${_sessionId}/bookings`)
+
+    const fromDb = rows
+      .filter((item) => item.status !== 'standby')
+      .map((item, index) =>
+        instructorMemberSchema.parse({
+          id: item.id,
+          name: `${item.user.firstName} ${item.user.lastName}`.trim(),
+          email: item.user.email,
+          avatarUrl: fallbackMemberAvatars[index % fallbackMemberAvatars.length],
+          checkInTime: null,
+          status:
+            item.status === 'attended'
+              ? 'attended'
+              : item.status === 'no_show'
+                ? 'no-show'
+                : 'pending',
+        }),
+      )
+
+    const merged = [
+      ...fromDb,
+      ...memberPlaceholderSeed.filter(
+        (placeholder) => !fromDb.some((item) => item.id === placeholder.id),
+      ),
+    ]
+
+    return merged.map((item) => instructorMemberSchema.parse(item))
+  } catch {
+    return memberPlaceholderSeed.map((item) => instructorMemberSchema.parse(item))
+  }
 }
 
 export async function fetchInstructorWaitlist(sessionId: string): Promise<InstructorWaitlistMember[]> {
   await wait()
-  const list = waitlistBySessionSeed[sessionId] ?? []
-  return list.map((w) => instructorWaitlistMemberSchema.parse(w))
+  try {
+    const rows = await apiFetch<
+      Array<{
+        id: string
+        status:
+          | 'confirmed'
+          | 'standby'
+          | 'cancelled'
+          | 'no_show'
+          | 'attended'
+          | 'pending_confirmation'
+        standbyPosition: number | null
+        user: {
+          firstName: string
+          lastName: string
+          email: string
+        }
+      }>
+    >(`/sessions/${sessionId}/bookings`)
+
+    const fromDb = rows
+      .filter((row) => row.status === 'standby')
+      .sort((a, b) => (a.standbyPosition ?? 9999) - (b.standbyPosition ?? 9999))
+      .map((row, index) =>
+        instructorWaitlistMemberSchema.parse({
+          id: row.id,
+          name: `${row.user.firstName} ${row.user.lastName}`.trim(),
+          email: row.user.email,
+          position: row.standbyPosition ?? index + 1,
+          status: 'standby',
+          avatarUrl: fallbackMemberAvatars[index % fallbackMemberAvatars.length],
+        }),
+      )
+
+    const placeholders = waitlistBySessionSeed[sessionId] ?? []
+    return [...fromDb, ...placeholders].map((w) =>
+      instructorWaitlistMemberSchema.parse(w),
+    )
+  } catch {
+    const list = waitlistBySessionSeed[sessionId] ?? []
+    return list.map((w) => instructorWaitlistMemberSchema.parse(w))
+  }
+}
+
+export async function checkInByQrToken(input: {
+  sessionId: string
+  memberToken: string
+}) {
+  return await apiFetch<{
+    checkInTime: string
+    className: string
+    memberName: string
+  }>('/checkin', {
+    method: 'POST',
+    body: input,
+  })
 }

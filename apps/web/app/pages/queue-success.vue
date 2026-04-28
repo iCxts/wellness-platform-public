@@ -1,10 +1,53 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
+import { fetchBookingDetail } from '~/services/bookings'
 definePageMeta({ ssr: false })
 
 const route = useRoute()
 const id = computed(() => String(route.query.id ?? 'vinyasa-flow'))
+const bookingId = computed(() => String(route.query.bookingId ?? ''))
 const { data: classItem } = useClassDetail(id)
+const { data: bookingDetail } = useAsyncData(
+  () => `queue-booking-${bookingId.value}`,
+  async () => {
+    if (!bookingId.value) return null
+    return await fetchBookingDetail(bookingId.value)
+  },
+)
+
+const queuePositionLabel = computed(() => {
+  const position = bookingDetail.value?.standbyPosition
+  return typeof position === 'number' && position > 0 ? `#${position} in queue` : 'In queue'
+})
+
+const detailClassName = computed(
+  () => bookingDetail.value?.session.title ?? classItem.value?.title,
+)
+const detailInstructor = computed(() => {
+  if (bookingDetail.value?.instructor) {
+    return `${bookingDetail.value.instructor.firstName} ${bookingDetail.value.instructor.lastName}`.trim()
+  }
+  return classItem.value?.trainer
+})
+const detailDate = computed(() => {
+  const startsAt = bookingDetail.value?.session.startsAt
+  if (!startsAt) return classItem.value?.dateLabel ?? '—'
+  return new Date(startsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+})
+const detailTime = computed(() => {
+  const startsAt = bookingDetail.value?.session.startsAt
+  const endsAt = bookingDetail.value?.session.endsAt
+  if (!startsAt || !endsAt) return `${classItem.value?.startTime ?? '—'} - ${classItem.value?.endTime ?? '—'}`
+  const start = new Date(startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  const end = new Date(endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  return `${start} - ${end}`
+})
+const detailLocation = computed(
+  () => bookingDetail.value?.session.placeDescription ?? classItem.value?.location ?? 'Wellness Center',
+)
+const detailRoom = computed(
+  () => bookingDetail.value?.session.roomName ?? classItem.value?.room ?? 'Room',
+)
 </script>
 
 <template>
@@ -33,14 +76,14 @@ const { data: classItem } = useClassDetail(id)
 
       <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.15 }">
         <div class="rounded-[30px] border border-[#ececec] p-6 text-left">
-          <p class="mb-5 text-center text-[42px] font-semibold text-[var(--bw-yellow)]">#3 in queue</p>
+          <p class="mb-5 text-center text-[42px] font-semibold text-[var(--bw-yellow)]">{{ queuePositionLabel }}</p>
           <dl class="space-y-2 text-[17px]">
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Class</dt><dd class="font-medium">{{ classItem?.title }}</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Instructor</dt><dd class="font-medium">{{ classItem?.trainer }}</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Date</dt><dd class="font-medium">Tomorrow</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Time</dt><dd class="font-medium">{{ classItem?.startTime }} - {{ classItem?.endTime }}</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Location</dt><dd class="font-medium">{{ classItem?.location }}</dd></div>
-            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Room</dt><dd class="font-medium">{{ classItem?.room }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Class</dt><dd class="font-medium">{{ detailClassName }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Instructor</dt><dd class="font-medium">{{ detailInstructor ?? 'Instructor' }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Date</dt><dd class="font-medium">{{ detailDate }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Time</dt><dd class="font-medium">{{ detailTime }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Location</dt><dd class="font-medium">{{ detailLocation }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-[#9d9c9c]">Room</dt><dd class="font-medium">{{ detailRoom }}</dd></div>
           </dl>
         </div>
       </Motion>
