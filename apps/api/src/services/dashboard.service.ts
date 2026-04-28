@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, count, asc, gt, lt, ne } from "drizzle-orm";
+import { eq, and, gte, lte, count, asc, gt } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users, sessions, bookings, zoneVisits } from "@wellness/db";
 import type {
@@ -191,36 +191,4 @@ export async function getDashboard(userId: string): Promise<DashboardResponse> {
         schedule,
         myBookings,
     };
-}
-
-export async function getAdminStats() {
-    const now = new Date();
-
-    const [attendanceTotal, classesHeldTotal, bookingsTotal, noShowTotal] = await Promise.all([
-        db.select({ count: count() })
-            .from(bookings)
-            .where(eq(bookings.status, "attended"))
-            .then((r) => Number(r[0]?.count ?? 0)),
-
-        db.select({ count: count() })
-            .from(sessions)
-            .where(lt(sessions.endsAt, now))
-            .then((r) => Number(r[0]?.count ?? 0)),
-
-        db.select({ count: count() })
-            .from(bookings)
-            .where(ne(bookings.status, "cancelled"))
-            .then((r) => Number(r[0]?.count ?? 0)),
-
-        db.select({ count: count() })
-            .from(bookings)
-            .where(eq(bookings.status, "no_show"))
-            .then((r) => Number(r[0]?.count ?? 0)),
-    ]);
-
-    const noShowRatePercent = bookingsTotal > 0
-        ? Math.round((noShowTotal / bookingsTotal) * 100)
-        : 0;
-
-    return { attendanceTotal, classesHeldTotal, bookingsTotal, noShowRatePercent };
 }
