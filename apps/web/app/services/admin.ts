@@ -237,13 +237,13 @@ export async function fetchAdminMembers(sessionId: string): Promise<AdminMember[
 }
 
 export async function fetchAdminDashboardSummary(): Promise<AdminDashboardSummary> {
-  await wait()
-  return adminDashboardSummarySchema.parse({
-    attendanceTotal: 128,
-    classesHeldTotal: 10,
-    bookingsTotal: 56,
-    noShowRatePercent: 70,
-  })
+  const data = await apiFetch<{
+    attendanceTotal: number
+    classesHeldTotal: number
+    bookingsTotal: number
+    noShowRatePercent: number
+  }>('/dashboard/admin/stats')
+  return adminDashboardSummarySchema.parse(data)
 }
 
 export async function fetchAdminZones(): Promise<AdminZone[]> {
