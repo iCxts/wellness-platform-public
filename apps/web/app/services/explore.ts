@@ -474,19 +474,30 @@ export async function fetchClassById(id: string): Promise<ClassItem> {
   if (seeded) return classItemSchema.parse(seeded)
 
   try {
-    const item = await apiFetch<{
-      id: string
-      title: string
-      type: string
-      level: string | null
-      focus: string[] | null
-      imageUrl: string | null
-      roomName: string | null
-      placeDescription: string | null
-      startsAt: string
-      endsAt: string
-      spotsLeft: number
-    }>(`/sessions/${id}`)
+    const [item, myBookings] = await Promise.all([
+      apiFetch<{
+        id: string
+        title: string
+        type: string
+        level: string | null
+        focus: string[] | null
+        imageUrl: string | null
+        roomName: string | null
+        placeDescription: string | null
+        startsAt: string
+        endsAt: string
+        spotsLeft: number
+      }>(`/sessions/${id}`),
+      apiFetch<Array<{ sessionId: string; status: string }>>('/bookings/me?tab=upcoming').catch(
+        () => [] as Array<{ sessionId: string; status: string }>,
+      ),
+    ])
+
+    const myBooking = myBookings.find((b) => b.sessionId === id)
+    const bookingStatus =
+      myBooking?.status === 'confirmed' ? 'confirmed'
+      : myBooking?.status === 'standby' ? 'standby'
+      : null
 
     return classItemSchema.parse({
       id: item.id,
@@ -513,6 +524,7 @@ export async function fetchClassById(id: string): Promise<ClassItem> {
       level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
       slotsLeft: Math.max(item.spotsLeft, 0),
       status: item.spotsLeft > 0 ? 'available' : 'full',
+      bookingStatus,
       focus: item.focus
         ?.map((focus) => focusMap[focus] ?? focus)
         .filter(Boolean) ?? ['General'],

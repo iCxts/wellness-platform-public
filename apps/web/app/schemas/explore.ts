@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const classLevelSchema = z.enum(['Beginner', 'Intermediate', 'Advanced'])
 export const classStatusSchema = z.enum(['available', 'full'])
+export const classBookingStatusSchema = z.enum(['confirmed', 'standby']).nullable().optional()
 
 export const classItemSchema = z.object({
   id: z.string(),
@@ -21,6 +22,7 @@ export const classItemSchema = z.object({
   level: classLevelSchema,
   slotsLeft: z.number().int().nonnegative(),
   status: classStatusSchema,
+  bookingStatus: classBookingStatusSchema,
   focus: z.array(z.string()).min(1),
   category: z.enum([
     'All',

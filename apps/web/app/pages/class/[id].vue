@@ -13,17 +13,24 @@ const { data: classItem, isPending } = useClassDetail(id)
 const actionError = ref('')
 const isSubmitting = ref(false)
 
-const ctaLabel = computed(() =>
-  mode.value === 'queue' ? 'Join Queue' : 'Book now',
-)
-const ctaClass = computed(() =>
-  mode.value === 'queue'
+const isBooked = computed(() => classItem.value?.bookingStatus === 'confirmed')
+const isWaitlisted = computed(() => classItem.value?.bookingStatus === 'standby')
+
+const ctaLabel = computed(() => {
+  if (isBooked.value) return 'Booked'
+  if (isWaitlisted.value) return 'Waitlisted'
+  return mode.value === 'queue' ? 'Join Queue' : 'Book now'
+})
+const ctaClass = computed(() => {
+  if (isBooked.value || isWaitlisted.value)
+    return 'bg-[#e0e0e0] text-[#888] cursor-default'
+  return mode.value === 'queue'
     ? 'border border-[var(--bw-orange)] bg-white text-[var(--bw-orange)]'
-    : 'bg-[var(--bw-orange)] text-white',
-)
+    : 'bg-[var(--bw-orange)] text-white'
+})
 
 const onPrimary = async () => {
-  if (isSubmitting.value) return
+  if (isSubmitting.value || isBooked.value || isWaitlisted.value) return
   actionError.value = ''
   if (mode.value === 'queue') {
     await router.push(`/queue-success?id=${id.value}`)

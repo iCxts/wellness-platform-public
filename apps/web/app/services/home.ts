@@ -12,7 +12,73 @@ import {
 } from '~/schemas/home'
 import { useAuth } from '~/composables/useAuth'
 
-const wait = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms))
+const DEFAULT_AVATAR =
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=160&h=160&q=80'
+const DEFAULT_SESSION_IMAGE =
+  'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&w=1400&q=90'
+
+type DashboardResponse = {
+  profile: { firstName: string; avatarUrl: string | null }
+  upcomingClass: {
+    bookingId: string
+    sessionId: string
+    title: string
+    imageUrl: string | null
+    startsAt: string
+    endsAt: string
+    startsInMs: number
+  } | null
+  progress: {
+    currentStreak: number
+    totalSessionsAttended: number
+    totalZoneVisits: number
+  }
+  schedule: Array<{
+    id: string
+    title: string
+    imageUrl: string | null
+    startsAt: string
+    endsAt: string
+    spotsLeft: number
+    bookingStatus: string | null
+    bookingId: string | null
+  }>
+  myBookings: Array<{
+    bookingId: string
+    sessionId: string
+    title: string
+    imageUrl: string | null
+    startsAt: string
+    endsAt: string
+    status: string
+    standbyPosition: number | null
+  }>
+}
+
+const apiFetch = async <T>(path: string) => {
+  const auth = useAuth()
+  const config = useRuntimeConfig()
+  return await $fetch<T>(path, {
+    baseURL: config.public.apiBase || 'http://localhost:3001',
+    headers: auth.token.value ? { Authorization: `Bearer ${auth.token.value}` } : undefined,
+  })
+}
+
+const toTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+const toDateLabel = (iso: string) => {
+  const d = new Date(iso)
+  const today = new Date()
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+}
+
+const toDateStr = (d: Date) => d.toISOString().slice(0, 10)
+
+export async function fetchDashboard(): Promise<DashboardResponse> {
+  return apiFetch<DashboardResponse>('/dashboard/me')
+}
 
 export async function fetchUser(): Promise<User> {
   const auth = useAuth()
@@ -21,65 +87,61 @@ export async function fetchUser(): Promise<User> {
   const fallback = userSchema.parse({
     id: auth.user.value?.id ?? 'u_1',
     name: auth.user.value?.email?.split('@')[0] ?? 'Member',
-    avatarUrl:
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=160&h=160&q=80',
+    avatarUrl: DEFAULT_AVATAR,
   })
-
-  if (!token) {
-    return fallback
-  }
-
+  if (!token) return fallback
   try {
-    const me = await $fetch<{
-      id: string
-      firstName: string
-      lastName: string
-      avatarUrl: string | null
-    }>('/users/me', {
-      baseURL: config.public.apiBase || 'http://localhost:3001',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-
+    const me = await $fetch<{ id: string; firstName: string; lastName: string; avatarUrl: string | null }>(
+      '/users/me',
+      {
+        baseURL: config.public.apiBase || 'http://localhost:3001',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
     return userSchema.parse({
       id: me.id,
       name: `${me.firstName} ${me.lastName}`.trim(),
-      avatarUrl:
-        me.avatarUrl ??
-        'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=facearea&facepad=2&w=160&h=160&q=80',
+      avatarUrl: me.avatarUrl ?? DEFAULT_AVATAR,
     })
   } catch {
     return fallback
   }
 }
 
-export async function fetchNextSession(): Promise<NextSession> {
-  await wait()
+export function deriveNextSession(d: DashboardResponse): NextSession {
+  if (!d.upcomingClass) {
+    return nextSessionSchema.parse({
+      id: 'none',
+      title: 'No Upcoming Session',
+      subtitle: 'Book a class to get started',
+      startsInMinutes: 0,
+      imageUrl: DEFAULT_SESSION_IMAGE,
+    })
+  }
   return nextSessionSchema.parse({
-    id: 's_1',
-    title: 'YOGA Express',
+    id: d.upcomingClass.sessionId,
+    title: d.upcomingClass.title,
     subtitle: 'Your Next Session',
-    startsInMinutes: 120,
-    imageUrl:
-      'https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&w=1400&q=90',
+    startsInMinutes: Math.max(0, Math.round(d.upcomingClass.startsInMs / 60000)),
+    imageUrl: d.upcomingClass.imageUrl ?? DEFAULT_SESSION_IMAGE,
   })
 }
 
-export async function fetchProgressStats(): Promise<ProgressStat[]> {
-  await wait()
+export function deriveProgressStats(d: DashboardResponse): ProgressStat[] {
   return [
     {
       id: 'streak',
       label: 'Daily Streak',
-      value: 18,
+      value: d.progress.currentStreak,
       unit: 'Days',
       icon: 'ph:flame-fill',
       emphasis: 'wide',
-      badge: { text: 'Keep it up!', tone: 'orange' },
+      badge: d.progress.currentStreak > 0 ? { text: 'Keep it up!', tone: 'orange' as const } : undefined,
     },
     {
       id: 'gym',
       label: 'Gym Attendance',
-      value: 12,
+      value: d.progress.totalZoneVisits,
       unit: 'Days',
       icon: 'ph:barbell-fill',
       emphasis: 'compact',
@@ -87,120 +149,49 @@ export async function fetchProgressStats(): Promise<ProgressStat[]> {
     {
       id: 'classes',
       label: 'Classes Taken',
-      value: 8,
+      value: d.progress.totalSessionsAttended,
       unit: 'Classes',
       icon: 'ph:person-simple-run-fill',
       emphasis: 'compact',
     },
-  ].map((stat) => progressStatSchema.parse(stat))
+  ].map((s) => progressStatSchema.parse(s))
 }
 
-export async function fetchWeekSchedule(): Promise<ScheduleDay[]> {
-  await wait()
-  const days = [
-    {
-      date: '2026-04-05',
-      dayLabel: 'Today',
-      dayNum: 5,
-      isToday: true,
-      hasSession: true,
-      sessionTone: 'orange',
-    },
-    {
-      date: '2026-04-06',
-      dayLabel: 'Mon',
-      dayNum: 6,
-      hasSession: true,
-      sessionTone: 'yellow',
-    },
-    { date: '2026-04-07', dayLabel: 'Tue', dayNum: 7 },
-    {
-      date: '2026-04-08',
-      dayLabel: 'Wed',
-      dayNum: 8,
-      hasSession: true,
-      sessionTone: 'yellow',
-    },
-    { date: '2026-04-09', dayLabel: 'Thu', dayNum: 9 },
-    { date: '2026-04-10', dayLabel: 'Fri', dayNum: 10 },
-    { date: '2026-04-11', dayLabel: 'Sat', dayNum: 11 },
-    { date: '2026-04-12', dayLabel: 'Sun', dayNum: 12 },
-    { date: '2026-04-13', dayLabel: 'Mon', dayNum: 13 },
-  ]
-  return days.map((day) => scheduleDaySchema.parse(day))
+export function deriveWeekSchedule(d: DashboardResponse): ScheduleDay[] {
+  const now = new Date()
+  const bookedDays = new Set(d.myBookings.map((b) => toDateStr(new Date(b.startsAt))))
+  const scheduleDays = new Set(d.schedule.map((s) => toDateStr(new Date(s.startsAt))))
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return Array.from({ length: 9 }, (_, i) => {
+    const d2 = new Date(now)
+    d2.setDate(now.getDate() + i)
+    const dateStr = toDateStr(d2)
+    const isToday = i === 0
+    const hasBooking = bookedDays.has(dateStr)
+    const hasAvailable = scheduleDays.has(dateStr)
+    return scheduleDaySchema.parse({
+      date: dateStr,
+      dayLabel: isToday ? 'Today' : DAY_LABELS[d2.getDay()],
+      dayNum: d2.getDate(),
+      isToday,
+      hasSession: hasBooking || hasAvailable,
+      sessionTone: hasBooking ? 'orange' : hasAvailable ? 'yellow' : undefined,
+    })
+  })
 }
 
-export async function fetchBookings(): Promise<Booking[]> {
-  await wait()
-  const items = [
-    {
-      id: 'b_1',
-      title: 'YOGA Express',
-      startTime: '12:45',
-      endTime: '13:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center A',
-      date: '2026-04-05',
-      dateLabel: 'Today',
-    },
-    {
-      id: 'b_2',
-      title: 'Full Body Flex',
-      startTime: '13:00',
-      endTime: '14:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center C',
-      date: '2026-04-13',
-      dateLabel: '13 Apr',
-    },
-    {
-      id: 'b_3',
-      title: 'YOGA Flow',
-      startTime: '13:00',
-      endTime: '14:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1540206395-68808572332f?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center A',
-      date: '2026-04-13',
-      dateLabel: '13 Apr',
-      available: true,
-    },
-    {
-      id: 'b_4',
-      title: 'YOGA Express',
-      startTime: '12:45',
-      endTime: '13:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center A',
-      date: '2026-04-05',
-      dateLabel: 'Today',
-    },
-    {
-      id: 'b_5',
-      title: 'Full Body Flex',
-      startTime: '13:00',
-      endTime: '14:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center C',
-      date: '2026-04-13',
-      dateLabel: '13 Apr',
-    },
-    {
-      id: 'b_6',
-      title: 'YOGA Flow',
-      startTime: '13:00',
-      endTime: '14:00',
-      imageUrl:
-        'https://images.unsplash.com/photo-1540206395-68808572332f?auto=format&fit=crop&w=600&h=400&q=80',
-      location: 'Wellness Center A',
-      date: '2026-04-13',
-      dateLabel: '13 Apr',
-      available: true,
-    },
-  ]
-  return items.map((item) => bookingSchema.parse(item))
+export function deriveBookings(d: DashboardResponse): Booking[] {
+  return d.myBookings.map((b) =>
+    bookingSchema.parse({
+      id: b.bookingId,
+      title: b.title,
+      startTime: toTime(b.startsAt),
+      endTime: toTime(b.endsAt),
+      imageUrl: b.imageUrl ?? DEFAULT_SESSION_IMAGE,
+      location: 'Wellness Center',
+      date: toDateStr(new Date(b.startsAt)),
+      dateLabel: toDateLabel(b.startsAt),
+    }),
+  )
 }

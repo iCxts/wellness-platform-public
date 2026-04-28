@@ -1,18 +1,16 @@
 import { useQuery } from '@tanstack/vue-query'
 import {
-  fetchBookings,
-  fetchNextSession,
-  fetchProgressStats,
+  fetchDashboard,
   fetchUser,
-  fetchWeekSchedule,
+  deriveNextSession,
+  deriveProgressStats,
+  deriveWeekSchedule,
+  deriveBookings,
 } from '~/services/home'
 
 export const homeQueryKeys = {
   user: ['home', 'user'] as const,
-  nextSession: ['home', 'next-session'] as const,
-  progressStats: ['home', 'progress-stats'] as const,
-  weekSchedule: ['home', 'week-schedule'] as const,
-  bookings: ['home', 'bookings'] as const,
+  dashboard: ['home', 'dashboard'] as const,
 }
 
 export const useUser = () =>
@@ -23,21 +21,28 @@ export const useUser = () =>
 
 export const useNextSession = () =>
   useQuery({
-    queryKey: homeQueryKeys.nextSession,
-    queryFn: fetchNextSession,
+    queryKey: homeQueryKeys.dashboard,
+    queryFn: fetchDashboard,
+    select: deriveNextSession,
   })
 
 export const useProgressStats = () =>
   useQuery({
-    queryKey: homeQueryKeys.progressStats,
-    queryFn: fetchProgressStats,
+    queryKey: homeQueryKeys.dashboard,
+    queryFn: fetchDashboard,
+    select: deriveProgressStats,
   })
 
 export const useWeekSchedule = () =>
   useQuery({
-    queryKey: homeQueryKeys.weekSchedule,
-    queryFn: fetchWeekSchedule,
+    queryKey: homeQueryKeys.dashboard,
+    queryFn: fetchDashboard,
+    select: deriveWeekSchedule,
   })
 
 export const useBookings = () =>
-  useQuery({ queryKey: homeQueryKeys.bookings, queryFn: fetchBookings })
+  useQuery({
+    queryKey: homeQueryKeys.dashboard,
+    queryFn: fetchDashboard,
+    select: deriveBookings,
+  })
