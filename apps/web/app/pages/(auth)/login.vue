@@ -65,7 +65,7 @@ const handleLogin = async () => {
         </h2>
 
         <label :class="inputClass">
-          <span class="text-sm text-[#ff6727]" aria-hidden="true">✉</span>
+          <Icon name="ph:envelope" class="h-5 w-5 text-[#ff6727] shrink-0" aria-hidden="true" />
           <input
             v-model="email"
             type="email"
@@ -76,7 +76,7 @@ const handleLogin = async () => {
         </label>
 
         <label :class="inputClass">
-          <span class="text-sm text-[#ff6727]" aria-hidden="true">🔒</span>
+          <Icon name="ph:lock" class="h-5 w-5 text-[#ff6727] shrink-0" aria-hidden="true" />
           <input
             v-model="password"
             :type="showPassword ? 'text' : 'password'"
@@ -90,7 +90,7 @@ const handleLogin = async () => {
             :aria-label="showPassword ? 'Hide password' : 'Show password'"
             @click="showPassword = !showPassword"
           >
-            {{ showPassword ? '🙈' : '👁' }}
+            <Icon :name="showPassword ? 'ph:eye-slash' : 'ph:eye'" class="h-5 w-5" />
           </button>
         </label>
 
