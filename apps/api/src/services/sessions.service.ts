@@ -20,8 +20,9 @@ export async function listSessions(filters?: {
     focus?: string;
     day?: string;
 }): Promise<SessionResponse[]> {
-    const now = new Date();
-    const conditions = [gte(sessions.startsAt, now)];
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const conditions = [gte(sessions.startsAt, startOfToday)];
 
     if (filters?.focus) {
         conditions.push(sql`${sessions.focus} @> ARRAY[${filters.focus}]::text[]`);

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { data: user, isPending } = useUser()
+
 const today = new Date()
 const dateLabel = `Today ${today.getDate()} ${today.toLocaleString('en-US', { month: 'short' })}`
 </script>
@@ -6,13 +8,18 @@ const dateLabel = `Today ${today.getDate()} ${today.toLocaleString('en-US', { mo
 <template>
   <header class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img
-        src="https://www.figma.com/api/mcp/asset/a1029d83-0114-438d-b73a-6c6b8b6fbe94"
-        alt="Profile"
-        class="h-10 w-10 rounded-full object-cover"
-      />
+      <div class="relative h-10 w-10 overflow-hidden rounded-full bg-black/5">
+        <img
+          v-if="user?.avatarUrl"
+          :src="user.avatarUrl"
+          :alt="user.name"
+          class="h-full w-full object-cover"
+        />
+      </div>
       <div>
-        <p class="text-[16px] font-semibold leading-none text-[var(--bw-ink)]">Hello, PEAR</p>
+        <p class="text-[16px] font-semibold leading-none text-[var(--bw-ink)]">
+          Hello, {{ isPending ? '...' : user?.name }}
+        </p>
         <p class="text-xs text-[var(--bw-subtle)]">{{ dateLabel }}</p>
       </div>
     </div>

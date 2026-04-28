@@ -1,4 +1,8 @@
-import { classItemSchema, type ClassItem, type ExploreFilter } from '~/schemas/explore'
+import {
+  classItemSchema,
+  type ClassItem,
+  type ExploreFilter,
+} from '~/schemas/explore'
 import { useAuth } from '~/composables/useAuth'
 
 const wait = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -20,7 +24,8 @@ const classesSeed: ClassItem[] = [
     trainerAvatar:
       'https://images.unsplash.com/photo-1531891437562-4301cf35b7e4?auto=format&fit=crop&w=240&h=240&q=80',
     trainerFlagEmoji: '🇹🇭',
-    heroImage: 'https://www.figma.com/api/mcp/asset/b562c2f4-a42c-4311-af13-9f9bc6c540bf',
+    heroImage:
+      'https://www.figma.com/api/mcp/asset/b562c2f4-a42c-4311-af13-9f9bc6c540bf',
     level: 'Beginner',
     slotsLeft: 8,
     status: 'available',
@@ -40,9 +45,11 @@ const classesSeed: ClassItem[] = [
     trainerExp: '4+ Years Exp',
     trainerQuote:
       "Let's turn your workday stress into graceful energy. Expect a challenge but always with a smile! See you on the mat.",
-    trainerAvatar: 'https://www.figma.com/api/mcp/asset/000067db-5cb9-4406-af12-b73088bb8a5b',
+    trainerAvatar:
+      'https://www.figma.com/api/mcp/asset/000067db-5cb9-4406-af12-b73088bb8a5b',
     trainerFlagEmoji: '🇹🇭',
-    heroImage: 'https://www.figma.com/api/mcp/asset/aae988fd-bf16-4055-a1a7-980547787331',
+    heroImage:
+      'https://www.figma.com/api/mcp/asset/aae988fd-bf16-4055-a1a7-980547787331',
     level: 'Intermediate',
     slotsLeft: 0,
     status: 'full',
@@ -62,9 +69,11 @@ const classesSeed: ClassItem[] = [
     trainerExp: '8+ Years Exp',
     trainerQuote:
       "Let's melt away that desk tension together and recharge your energy for a brilliant afternoon",
-    trainerAvatar: 'https://www.figma.com/api/mcp/asset/e37f44e2-f020-4865-81db-e9eb946623f5',
+    trainerAvatar:
+      'https://www.figma.com/api/mcp/asset/e37f44e2-f020-4865-81db-e9eb946623f5',
     trainerFlagEmoji: '🇹🇭',
-    heroImage: 'https://www.figma.com/api/mcp/asset/55db8103-b327-4626-9665-ec8436e89889',
+    heroImage:
+      'https://www.figma.com/api/mcp/asset/55db8103-b327-4626-9665-ec8436e89889',
     level: 'Advanced',
     slotsLeft: 2,
     status: 'available',
@@ -86,7 +95,8 @@ const classesSeed: ClassItem[] = [
     trainerAvatar:
       'https://images.unsplash.com/photo-1611672585731-fa10603fb9e0?auto=format&fit=crop&w=240&h=240&q=80',
     trainerFlagEmoji: '🇹🇭',
-    heroImage: 'https://www.figma.com/api/mcp/asset/d7738760-ce6f-4094-81de-8f0b9f08befd',
+    heroImage:
+      'https://www.figma.com/api/mcp/asset/d7738760-ce6f-4094-81de-8f0b9f08befd',
     level: 'Beginner',
     slotsLeft: 1,
     status: 'available',
@@ -357,16 +367,21 @@ const toTimeLabel = (iso: string) =>
   })
 
 const toDateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).toUpperCase()
+  new Date(iso)
+    .toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    .toUpperCase()
 
 const toCategory = (title: string, type: string): ExploreFilter => {
   const source = `${title} ${type}`.toLowerCase()
-  if (source.includes('hiit') || source.includes('strength')) return 'HIIT & Strength'
-  if (source.includes('dance') || source.includes('cardio')) return 'Cardio & Dance'
-  if (source.includes('stretch') || source.includes('mobility')) return 'Stretching'
+  if (source.includes('hiit') || source.includes('strength'))
+    return 'HIIT & Strength'
+  if (source.includes('dance') || source.includes('cardio'))
+    return 'Cardio & Dance'
+  if (source.includes('stretch') || source.includes('mobility'))
+    return 'Stretching'
   return 'Yoga & Pilates'
 }
 
@@ -408,7 +423,9 @@ async function fetchExploreClassesFromApi(): Promise<ClassItem[]> {
       durationMin: Math.max(
         1,
         Math.round(
-          (new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60000,
+          (new Date(item.endsAt).getTime() -
+            new Date(item.startsAt).getTime()) /
+            60000,
         ),
       ),
       location: item.placeDescription ?? 'Wellness Center',
@@ -423,23 +440,31 @@ async function fetchExploreClassesFromApi(): Promise<ClassItem[]> {
       level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
       slotsLeft: Math.max(item.spotsLeft, 0),
       status: item.spotsLeft > 0 ? 'available' : 'full',
-      focus:
-        item.focus?.map((focus) => focusMap[focus] ?? focus).filter(Boolean) ?? ['General'],
+      focus: item.focus
+        ?.map((focus) => focusMap[focus] ?? focus)
+        .filter(Boolean) ?? ['General'],
       category: toCategory(item.title, item.type),
     }),
   )
 }
 
-export async function fetchExploreClasses(filter: ExploreFilter): Promise<ClassItem[]> {
+export async function fetchExploreClasses(
+  filter: ExploreFilter,
+): Promise<ClassItem[]> {
   await wait()
   const seeded = classesSeed.map((item) => classItemSchema.parse(item))
 
   try {
     const fromApi = await fetchExploreClassesFromApi()
+    console.log('fromApi', fromApi)
     const merged = [...fromApi, ...seeded]
-    return filter === 'All' ? merged : merged.filter((c) => c.category === filter)
+    return filter === 'All'
+      ? merged
+      : merged.filter((c) => c.category === filter)
   } catch {
-    return filter === 'All' ? seeded : seeded.filter((c) => c.category === filter)
+    return filter === 'All'
+      ? seeded
+      : seeded.filter((c) => c.category === filter)
   }
 }
 
@@ -471,7 +496,9 @@ export async function fetchClassById(id: string): Promise<ClassItem> {
       durationMin: Math.max(
         1,
         Math.round(
-          (new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime()) / 60000,
+          (new Date(item.endsAt).getTime() -
+            new Date(item.startsAt).getTime()) /
+            60000,
         ),
       ),
       location: item.placeDescription ?? 'Wellness Center',
@@ -486,8 +513,9 @@ export async function fetchClassById(id: string): Promise<ClassItem> {
       level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
       slotsLeft: Math.max(item.spotsLeft, 0),
       status: item.spotsLeft > 0 ? 'available' : 'full',
-      focus:
-        item.focus?.map((focus) => focusMap[focus] ?? focus).filter(Boolean) ?? ['General'],
+      focus: item.focus
+        ?.map((focus) => focusMap[focus] ?? focus)
+        .filter(Boolean) ?? ['General'],
       category: toCategory(item.title, item.type),
     })
   } catch {

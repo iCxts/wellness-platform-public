@@ -5,19 +5,62 @@ import type { ExploreFilter } from '~/schemas/explore'
 definePageMeta({ ssr: false })
 
 const activeFilter = ref<ExploreFilter>('All')
+const selectedDate = ref(new Date())
 const { data: classes, isPending } = useExploreClasses(activeFilter)
+watch(classes, () => {
+  console.log('classes', classes.value)
+})
+
+// const classesForSelectedDate = computed(() => {
+//   const list = classes.value ?? []
+//   const target = selectedDate.value
+//     .toLocaleDateString('en-US', {
+//       month: 'short',
+//       day: 'numeric',
+//     })
+//     .toUpperCase()
+//   const selectedIsToday =
+//     new Date(
+//       selectedDate.value.getFullYear(),
+//       selectedDate.value.getMonth(),
+//       selectedDate.value.getDate(),
+//     ).getTime() ===
+//     new Date(
+//       new Date().getFullYear(),
+//       new Date().getMonth(),
+//       new Date().getDate(),
+//     ).getTime()
+
+//   return list.filter((item) =>
+//     selectedIsToday
+//       ? item.dateLabel === 'Today' || item.dateLabel === target
+//       : item.dateLabel === target,
+//   )
+// })
 </script>
 
 <template>
   <LayoutAppShell content-max-width="">
     <div class="space-y-5 md:space-y-7">
-      <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35 }">
+      <Motion
+        :initial="{ opacity: 0, y: 12 }"
+        :animate="{ opacity: 1, y: 0 }"
+        :transition="{ duration: 0.35 }"
+      >
         <ExploreHeader />
       </Motion>
-      <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.05 }">
-        <ExploreScheduleStrip />
+      <Motion
+        :initial="{ opacity: 0, y: 12 }"
+        :animate="{ opacity: 1, y: 0 }"
+        :transition="{ duration: 0.35, delay: 0.05 }"
+      >
+        <ExploreScheduleStrip v-model:selected-date="selectedDate" />
       </Motion>
-      <Motion :initial="{ opacity: 0, y: 12 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.35, delay: 0.1 }">
+      <Motion
+        :initial="{ opacity: 0, y: 12 }"
+        :animate="{ opacity: 1, y: 0 }"
+        :transition="{ duration: 0.35, delay: 0.1 }"
+      >
         <ExploreFilters v-model="activeFilter" />
       </Motion>
 
