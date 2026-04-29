@@ -15,12 +15,6 @@
       My Schedule
     </h1>
 
-    <NuxtLink
-      to="/notifications"
-      class="grid h-8 w-8 place-items-center rounded-full text-[var(--bw-ink)] md:h-10 md:w-10"
-      aria-label="Notifications"
-    >
-      <Icon name="ph:bell" class="h-6 w-6" />
-    </NuxtLink>
+    <NotificationBellLink compact />
   </header>
 </template>

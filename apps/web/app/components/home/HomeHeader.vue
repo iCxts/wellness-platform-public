@@ -38,12 +38,6 @@ const dateLabel = `Today ${today.getDate()} ${today.toLocaleString('en-US', {
       </p>
     </div>
 
-    <NuxtLink
-      to="/notifications"
-      class="grid h-10 w-10 place-items-center rounded-full text-[var(--bw-ink)] transition-colors hover:bg-black/5"
-      aria-label="Notifications"
-    >
-      <Icon name="ph:bell" class="h-6 w-6" />
-    </NuxtLink>
+    <NotificationBellLink />
   </Motion>
 </template>

@@ -5,9 +5,25 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '~/services/notifications'
+import { useAuth } from '~/composables/useAuth'
 
 export const notificationsQueryKeys = {
   list: (unreadOnly: boolean) => ['notifications', unreadOnly] as const,
+  unreadCount: ['notifications', 'unread-count'] as const,
+}
+
+/** Dot/badge on bell icons; invalidated when lists mark items read. */
+export function useUnreadNotificationCount() {
+  const auth = useAuth()
+  return useQuery({
+    queryKey: notificationsQueryKeys.unreadCount,
+    queryFn: async () => {
+      const items = await fetchNotifications(true)
+      return items.length
+    },
+    enabled: computed(() => !!auth.token.value),
+    staleTime: 30_000,
+  })
 }
 
 export function useNotificationsList(unreadOnly: Ref<boolean>) {
