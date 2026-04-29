@@ -63,6 +63,14 @@ export async function fetchBookingDetail(bookingId: string): Promise<BookingDeta
   return await apiFetch<BookingDetailResponse>(`/bookings/${bookingId}`)
 }
 
+export async function confirmPromotionBooking(
+  bookingId: string,
+): Promise<BookingCreateResponse> {
+  return await apiFetch<BookingCreateResponse>(`/bookings/${bookingId}/confirm`, {
+    method: 'PATCH',
+  })
+}
+
 export async function cancelBooking(bookingId: string): Promise<void> {
   await apiFetch(`/bookings/${bookingId}`, { method: 'DELETE' })
 }

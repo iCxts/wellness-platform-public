@@ -129,8 +129,9 @@ export type ZoneResponse = {
 };
 
 //notifications
-export type NotificationType = 
+export type NotificationType =
     | "standby_promoted"
+    | "spot_opened"
     | "no_show_tagged"
     | "absence_warning"
     | "feedback_request"
@@ -149,6 +150,8 @@ export type NotificationResponse = {
     body: string,
     isRead: boolean,
     metadata: NotificationMetadata | null,
+    /** Present when notification links to a class session (e.g. spot opened). */
+    sessionId: string | null,
     createdAt: string
 };
 

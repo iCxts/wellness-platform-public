@@ -5,6 +5,8 @@ import type { NotificationResponse, NotificationType, NotificationMetadata } fro
 import { sendPush } from "./push.service.js";
 
 function toResponse(n: typeof notifications.$inferSelect): NotificationResponse {
+    const metadata = (n.metadata as NotificationMetadata) ?? null;
+    const sessionId = n.sessionId ?? metadata?.sessionId ?? null;
     return {
         id: n.id,
         userId: n.userId,
@@ -12,8 +14,9 @@ function toResponse(n: typeof notifications.$inferSelect): NotificationResponse 
         title: n.title,
         body: n.body,
         isRead: n.isRead,
-        metadata: (n.metadata as NotificationMetadata) ?? null,
-        createdAt: n.createdAt.toISOString()
+        metadata,
+        sessionId,
+        createdAt: n.createdAt.toISOString(),
     };
 }
 
@@ -22,12 +25,19 @@ export async function createNotification(
     type: NotificationType,
     title: string,
     body: string,
-    metadata?: NotificationMetadata
+    metadata?: NotificationMetadata,
+    explicitSessionId?: string | null,
 ): Promise<void> {
-    await db
-        .insert(notifications)
-        .values({ userId, type, title, body, metadata: metadata ?? null });
-    
+    const sessionId = explicitSessionId ?? metadata?.sessionId ?? null;
+    await db.insert(notifications).values({
+        userId,
+        type,
+        title,
+        body,
+        metadata: metadata ?? null,
+        sessionId,
+    });
+
     sendPush(userId, title, body).catch(() => {});
 }
 

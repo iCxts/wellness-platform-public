@@ -16,13 +16,14 @@ const isQrLoading = ref(false)
 const loadBookingQr = async () => {
   qrError.value = ''
   qrDataUrl.value = ''
-  if (!bookingId.value) {
+  const raw = bookingId.value
+  if (!raw || raw === 'undefined' || raw === 'null') {
     qrError.value = 'Booking QR is unavailable for this item.'
     return
   }
   try {
     isQrLoading.value = true
-    const payload = await fetchBookingQr(bookingId.value)
+    const payload = await fetchBookingQr(raw)
     qrDataUrl.value = await QRCode.toDataURL(payload.token, {
       errorCorrectionLevel: 'M',
       margin: 1,

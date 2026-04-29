@@ -622,7 +622,7 @@ All routes require auth. In-app + FCM push — no email or SMS.
 
 Every notification saved to DB also fires a push to the member's registered device (if token exists). The `checked_in` event is a silent data-only push sent directly from `POST /checkin` — no banner, app handles navigation.
 
-Notification types: `standby_promoted` | `no_show_tagged` | `absence_warning` | `feedback_request` | `reminder`
+Notification types: `standby_promoted` | `spot_opened` | `no_show_tagged` | `absence_warning` | `feedback_request` | `reminder`
 
 **NotificationResponse shape**
 ```json
@@ -634,10 +634,11 @@ Notification types: `standby_promoted` | `no_show_tagged` | `absence_warning` | 
   "body": "Your standby booking has been confirmed.",
   "isRead": false,
   "metadata": { "sessionId": "uuid", "bookingId": "uuid" },
+  "sessionId": "uuid",
   "createdAt": "2026-04-08T10:00:00.000Z"
 }
 ```
-`metadata` is a JSON object with context-specific fields, or `null`.
+`metadata` is a JSON object with context-specific fields, or `null`. `sessionId` is set when the notification relates to a class session (FK + deep link); it may duplicate `metadata.sessionId`.
 
 ---
 

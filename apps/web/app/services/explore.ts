@@ -468,11 +468,54 @@ export async function fetchExploreClasses(
   }
 }
 
+function mapApiSessionToClassItem(item: {
+  id: string
+  title: string
+  type: string
+  level: string | null
+  focus: string[] | null
+  imageUrl: string | null
+  roomName: string | null
+  placeDescription: string | null
+  startsAt: string
+  endsAt: string
+  spotsLeft: number
+}): ClassItem {
+  return classItemSchema.parse({
+    id: item.id,
+    title: item.title,
+    startTime: toTimeLabel(item.startsAt),
+    endTime: toTimeLabel(item.endsAt),
+    durationMin: Math.max(
+      1,
+      Math.round(
+        (new Date(item.endsAt).getTime() -
+          new Date(item.startsAt).getTime()) /
+          60000,
+      ),
+    ),
+    location: item.placeDescription ?? 'Wellness Center',
+    room: item.roomName ?? 'Room',
+    dateLabel: toDateLabel(item.startsAt),
+    trainer: 'Instructor',
+    trainerExp: 'Certified Coach',
+    trainerQuote: 'Guided session tailored to your progress.',
+    trainerAvatar: defaultTrainerAvatar,
+    trainerFlagEmoji: '🇹🇭',
+    heroImage: item.imageUrl ?? fallbackHeroImage,
+    level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
+    slotsLeft: Math.max(item.spotsLeft, 0),
+    status: item.spotsLeft > 0 ? 'available' : 'full',
+    focus:
+      item.focus
+        ?.map((focus) => focusMap[focus] ?? focus)
+        .filter(Boolean) ?? ['General'],
+    category: toCategory(item.title, item.type),
+  })
+}
+
 export async function fetchClassById(id: string): Promise<ClassItem> {
   await wait()
-  const seeded = classesSeed.find((c) => c.id === id)
-  if (seeded) return classItemSchema.parse(seeded)
-
   try {
     const item = await apiFetch<{
       id: string
@@ -487,38 +530,10 @@ export async function fetchClassById(id: string): Promise<ClassItem> {
       endsAt: string
       spotsLeft: number
     }>(`/sessions/${id}`)
-
-    return classItemSchema.parse({
-      id: item.id,
-      title: item.title,
-      startTime: toTimeLabel(item.startsAt),
-      endTime: toTimeLabel(item.endsAt),
-      durationMin: Math.max(
-        1,
-        Math.round(
-          (new Date(item.endsAt).getTime() -
-            new Date(item.startsAt).getTime()) /
-            60000,
-        ),
-      ),
-      location: item.placeDescription ?? 'Wellness Center',
-      room: item.roomName ?? 'Room',
-      dateLabel: toDateLabel(item.startsAt),
-      trainer: 'Instructor',
-      trainerExp: 'Certified Coach',
-      trainerQuote: 'Guided session tailored to your progress.',
-      trainerAvatar: defaultTrainerAvatar,
-      trainerFlagEmoji: '🇹🇭',
-      heroImage: item.imageUrl ?? fallbackHeroImage,
-      level: levelMap[item.level ?? 'beginner'] ?? 'Beginner',
-      slotsLeft: Math.max(item.spotsLeft, 0),
-      status: item.spotsLeft > 0 ? 'available' : 'full',
-      focus: item.focus
-        ?.map((focus) => focusMap[focus] ?? focus)
-        .filter(Boolean) ?? ['General'],
-      category: toCategory(item.title, item.type),
-    })
+    return mapApiSessionToClassItem(item)
   } catch {
+    const seeded = classesSeed.find((c) => c.id === id)
+    if (seeded) return classItemSchema.parse(seeded)
     return classItemSchema.parse(classesSeed[0])
   }
 }

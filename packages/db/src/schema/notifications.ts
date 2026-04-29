@@ -1,12 +1,14 @@
 import { pgTable, uuid, text, boolean, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
+import { sessions } from "./sessions";
 
 export const notificationTypeEnum = pgEnum("notification_type", [
     "standby_promoted",
     "no_show_tagged",
     "absence_warning",
     "feedback_request",
-    "reminder"
+    "reminder",
+    "spot_opened",
 ]);
 
 export const notifications = pgTable("notifications", {
@@ -17,5 +19,6 @@ export const notifications = pgTable("notifications", {
     body: text("body").notNull(),
     isRead: boolean("is_read").notNull().default(false),
     metadata: jsonb("metadata"),
-    createdAt: timestamp("created_at").notNull().defaultNow()
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
 });

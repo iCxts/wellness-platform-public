@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
-import { createBooking } from '~/services/bookings'
+import {
+  cancelBooking,
+  confirmPromotionBooking,
+  createBooking,
+} from '~/services/bookings'
 definePageMeta({ ssr: false })
 
 const route = useRoute()
@@ -11,7 +15,7 @@ const id = computed(() => String(route.params.id ?? 'morning-reset'))
 const mode = computed(() =>
   route.query.mode === 'queue' ? 'queue' : 'booking',
 )
-const { data: classItem, isPending } = useClassDetail(id)
+const { data: classItem, isPending, refetch: refetchClassDetail } = useClassDetail(id)
 const actionError = ref('')
 const isSubmitting = ref(false)
 const createdBookingStatus = ref<'confirmed' | 'standby' | null>(null)
@@ -19,141 +23,250 @@ const bookingStatusWatchKey = computed(
   () => `${id.value}:${auth.user.value?.id ?? 'guest'}:${auth.token.value ?? ''}`,
 )
 
+type SessionBookingState = {
+  summary: 'waitlisted' | 'booked' | null
+  standbyBookingId: string | null
+  pendingConfirmationBookingId: string | null
+}
+
 const {
-  data: existingBookingStatus,
+  data: sessionBookingState,
   pending: checkingExistingBooking,
-  refresh: refreshExistingBookingStatus,
-} =
-  useAsyncData(
-    () => `class-booking-status-${id.value}-${auth.user.value?.id ?? 'guest'}`,
-    async () => {
-      if (!auth.token.value) return null
-      const allBookings = await $fetch<
-        Array<{
-          sessionId: string
-          status:
-            | 'confirmed'
-            | 'standby'
-            | 'cancelled'
-            | 'no_show'
-            | 'attended'
-            | 'pending_confirmation'
-          createdAt: string
-        }>
-      >('/bookings/me', {
-        baseURL: config.public.apiBase || 'http://localhost:3001',
-        headers: { Authorization: `Bearer ${auth.token.value}` },
-      })
+  refresh: refreshSessionBookingState,
+} = useAsyncData(
+  () => `class-booking-status-${id.value}-${auth.user.value?.id ?? 'guest'}`,
+  async (): Promise<SessionBookingState | null> => {
+    if (!auth.token.value) return null
+    const allBookings = await $fetch<
+      Array<{
+        id: string
+        sessionId: string
+        status:
+          | 'confirmed'
+          | 'standby'
+          | 'cancelled'
+          | 'no_show'
+          | 'attended'
+          | 'pending_confirmation'
+        createdAt: string
+      }>
+    >('/bookings/me', {
+      baseURL: config.public.apiBase || 'http://localhost:3001',
+      headers: { Authorization: `Bearer ${auth.token.value}` },
+    })
 
-      const matching = allBookings
-        .filter((item) => item.sessionId === id.value)
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )
+    const matching = allBookings
+      .filter((item) => item.sessionId === id.value)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
 
-      if (matching.length === 0) return null
-      if (
-        matching.some((item) =>
-          ['standby', 'pending_confirmation'].includes(item.status),
-        )
-      ) {
-        return 'waitlisted' as const
-      }
-      if (
-        matching.some((item) =>
-          ['confirmed', 'attended'].includes(item.status),
-        )
-      ) {
-        return 'booked' as const
-      }
-      if (
-        matching.every((item) =>
-          ['cancelled', 'no_show'].includes(item.status),
-        )
-      ) {
-        return null
-      }
-      const active = matching.find((item) => item.status !== 'cancelled')
-      if (active?.status === 'standby' || active?.status === 'pending_confirmation') {
-        return 'waitlisted' as const
-      }
-      if (active?.status === 'confirmed' || active?.status === 'attended') {
-        return 'booked' as const
-      }
-      const latest = matching[0]
-      if (!latest) return null
-      if (
-        ['standby', 'pending_confirmation'].includes(latest.status)
-      ) {
-        return 'waitlisted' as const
-      }
-      if (
-        ['confirmed', 'attended'].includes(latest.status)
-      ) {
-        return 'booked' as const
-      }
+    const standbyBookingId =
+      matching.find((item) => item.status === 'standby')?.id ?? null
+    const pendingConfirmationBookingId =
+      matching.find((item) => item.status === 'pending_confirmation')?.id ??
+      null
 
-      return null
-    },
-    {
-      server: false,
-      default: () => null,
-      watch: [bookingStatusWatchKey],
-    },
-  )
+    const pack = (
+      summary: SessionBookingState['summary'],
+    ): SessionBookingState => ({
+      summary,
+      standbyBookingId,
+      pendingConfirmationBookingId,
+    })
+
+    if (matching.length === 0) {
+      return pack(null)
+    }
+    if (
+      matching.some((item) =>
+        ['standby', 'pending_confirmation'].includes(item.status),
+      )
+    ) {
+      return pack('waitlisted')
+    }
+    if (
+      matching.some((item) => ['confirmed', 'attended'].includes(item.status))
+    ) {
+      return pack('booked')
+    }
+    if (
+      matching.every((item) =>
+        ['cancelled', 'no_show'].includes(item.status),
+      )
+    ) {
+      return pack(null)
+    }
+    const active = matching.find((item) => item.status !== 'cancelled')
+    if (
+      active?.status === 'standby' ||
+      active?.status === 'pending_confirmation'
+    ) {
+      return pack('waitlisted')
+    }
+    if (active?.status === 'confirmed' || active?.status === 'attended') {
+      return pack('booked')
+    }
+    const latest = matching[0]
+    if (!latest) return pack(null)
+    if (['standby', 'pending_confirmation'].includes(latest.status)) {
+      return pack('waitlisted')
+    }
+    if (['confirmed', 'attended'].includes(latest.status)) {
+      return pack('booked')
+    }
+
+    return pack(null)
+  },
+  {
+    server: false,
+    default: () => null,
+    watch: [bookingStatusWatchKey, () => classItem.value?.slotsLeft ?? -1],
+  },
+)
 const isClassFull = computed(() => (classItem.value?.slotsLeft ?? 0) <= 0)
 const effectiveMode = computed(() =>
   isClassFull.value || mode.value === 'queue' ? 'queue' : 'booking',
 )
+const existingBookingSummary = computed(
+  () => sessionBookingState.value?.summary ?? null,
+)
+const standbyBookingIdRef = computed(
+  () => sessionBookingState.value?.standbyBookingId ?? null,
+)
+const pendingBookingIdRef = computed(
+  () => sessionBookingState.value?.pendingConfirmationBookingId ?? null,
+)
+
 const hasExistingBooking = computed(
   () =>
-    existingBookingStatus.value === 'booked' ||
-    existingBookingStatus.value === 'waitlisted' ||
+    existingBookingSummary.value === 'booked' ||
+    existingBookingSummary.value === 'waitlisted' ||
     createdBookingStatus.value === 'confirmed' ||
     createdBookingStatus.value === 'standby',
 )
 const isAlreadyBooked = computed(
   () =>
-    existingBookingStatus.value === 'booked' ||
+    existingBookingSummary.value === 'booked' ||
     createdBookingStatus.value === 'confirmed',
 )
 const isAlreadyWaitlisted = computed(
   () =>
-    existingBookingStatus.value === 'waitlisted' ||
+    existingBookingSummary.value === 'waitlisted' ||
     createdBookingStatus.value === 'standby',
 )
+
+/** Promoted-from-queue pending confirmation, or standby when API reports open spots. */
+const showBookActionInsteadOfWaitlist = computed(() => {
+  if (pendingBookingIdRef.value) return true
+  const slots = classItem.value?.slotsLeft ?? 0
+  return Boolean(standbyBookingIdRef.value) && slots > 0
+})
+
+const blocksPrimaryBooking = computed(() => {
+  if (
+    existingBookingSummary.value === 'booked' ||
+    createdBookingStatus.value === 'confirmed'
+  )
+    return true
+  const onWaitlist =
+    existingBookingSummary.value === 'waitlisted' ||
+    createdBookingStatus.value === 'standby'
+  if (onWaitlist && !showBookActionInsteadOfWaitlist.value) return true
+  return false
+})
 
 const ctaLabel = computed(() =>
   checkingExistingBooking.value && Boolean(auth.token.value)
     ? 'Checking...'
     : isAlreadyBooked.value
-    ? 'Already booked'
-    : isAlreadyWaitlisted.value
-      ? 'On waitlist'
-      : effectiveMode.value === 'queue'
-        ? 'Join Queue'
-        : 'Book now',
+      ? 'Already booked'
+      : showBookActionInsteadOfWaitlist.value
+        ? pendingBookingIdRef.value
+          ? 'Confirm booking'
+          : 'Book now'
+        : isAlreadyWaitlisted.value
+          ? 'On waitlist'
+          : effectiveMode.value === 'queue'
+            ? 'Join Queue'
+            : 'Book now',
 )
-const ctaClass = computed(() =>
-  hasExistingBooking.value
-    ? 'bg-[#9d9c9c] text-white'
-    : effectiveMode.value === 'queue'
-    ? 'border border-[var(--bw-orange)] bg-white text-[var(--bw-orange)]'
-    : 'bg-[var(--bw-orange)] text-white',
+const ctaClass = computed(() => {
+  if (showBookActionInsteadOfWaitlist.value) {
+    return 'bg-[var(--bw-orange)] text-white'
+  }
+  if (blocksPrimaryBooking.value) {
+    return 'bg-[#9d9c9c] text-white'
+  }
+  if (effectiveMode.value === 'queue') {
+    return 'border border-[var(--bw-orange)] bg-white text-[var(--bw-orange)]'
+  }
+  return 'bg-[var(--bw-orange)] text-white'
+})
+
+const showQueueSessionCopy = computed(
+  () => effectiveMode.value === 'queue' && !showBookActionInsteadOfWaitlist.value,
 )
+
+/** Real sessions hit GET /sessions/:id — poll while standby waitlisted & slots still read full until API catches cancellations. */
+watchEffect((onCleanup) => {
+  const standby = standbyBookingIdRef.value
+  const waitlisted = existingBookingSummary.value === 'waitlisted'
+  const slots = classItem.value?.slotsLeft ?? 0
+  if (!standby || !waitlisted || slots > 0) return
+
+  const tick = () => {
+    void refetchClassDetail()
+  }
+  tick()
+  const intervalMs = 3500
+  const t = setInterval(tick, intervalMs)
+  onCleanup(() => clearInterval(t))
+})
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') void refetchClassDetail()
+}
+
+onMounted(() => {
+  void refetchClassDetail()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
 
 const onPrimary = async () => {
   if (isSubmitting.value) return
   if (checkingExistingBooking.value && auth.token.value) return
-  if (hasExistingBooking.value) return
+  if (hasExistingBooking.value && !showBookActionInsteadOfWaitlist.value) return
   actionError.value = ''
   try {
     isSubmitting.value = true
+
+    if (pendingBookingIdRef.value) {
+      const promotedBookingId = pendingBookingIdRef.value
+      await confirmPromotionBooking(promotedBookingId)
+      createdBookingStatus.value = 'confirmed'
+      await refreshSessionBookingState()
+      await router.push(
+        `/booking-success?id=${id.value}&bookingId=${promotedBookingId}`,
+      )
+      return
+    }
+
+    if (showBookActionInsteadOfWaitlist.value && standbyBookingIdRef.value) {
+      await cancelBooking(standbyBookingIdRef.value)
+      createdBookingStatus.value = null
+      await refreshSessionBookingState()
+    }
+
     const booking = await createBooking(id.value)
     createdBookingStatus.value =
       booking.status === 'standby' ? 'standby' : 'confirmed'
-    await refreshExistingBookingStatus()
+    await refreshSessionBookingState()
     if (booking.status === 'standby') {
       await router.push(`/queue-success?id=${id.value}&bookingId=${booking.id}`)
       return
@@ -273,7 +386,7 @@ const onPrimary = async () => {
         class="text-[12px] leading-[1.4]"
       >
         {{
-          effectiveMode === 'queue'
+          showQueueSessionCopy
             ? 'This dynamic intermediate session syncs breath with movement to undo the desk hunch. Reset your posture, strengthen your core, and leave feeling taller and recharged for the afternoon.'
             : 'Undo the damage of your desk chair. A 45-minute flow targeting neck, shoulder, and back tension to leave you feeling taller, realigned, and recharged to tackle the rest of your workday with clarity.'
         }}
@@ -318,7 +431,7 @@ const onPrimary = async () => {
               <p class="text-[10px]">{{ classItem.trainerExp }}</p>
               <p class="mt-2 text-[10px]">
                 {{
-                  effectiveMode === 'queue'
+                  showQueueSessionCopy
                     ? '"Let\'s turn your workday stress into graceful energy. Expect a challenge but always with a smile! See you on the mat."'
                     : '"Let\'s melt away that desk tension together and recharge your energy for a brilliant afternoon"'
                 }}
@@ -336,7 +449,11 @@ const onPrimary = async () => {
         <button
           class="h-[55px] w-full rounded-[20px] text-[16px] font-semibold"
           :class="ctaClass"
-          :disabled="hasExistingBooking || isSubmitting || (checkingExistingBooking && !!auth.token)"
+          :disabled="
+            blocksPrimaryBooking ||
+              isSubmitting ||
+              (checkingExistingBooking && !!auth.token)
+          "
           @click="onPrimary"
         >
           {{ ctaLabel }}

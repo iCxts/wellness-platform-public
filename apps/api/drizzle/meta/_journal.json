@@ -57,6 +57,13 @@
       "when": 1777189827322,
       "tag": "0007_colossal_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777190000000,
+      "tag": "0008_queue_spot_notifications",
+      "breakpoints": true
     }
   ]
 }

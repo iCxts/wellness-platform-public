@@ -196,7 +196,8 @@ export async function fetchInstructorSessions(): Promise<InstructorSession[]> {
           room: item.roomName ?? 'Room',
           participants: Math.max(item.capacity - item.spotsLeft, 0),
           capacity: item.capacity,
-          instructor: auth.user.value?.email.split('@')[0] ?? INSTRUCTOR_MOCK_NAME,
+          instructor:
+            auth.user.value?.email.split('@')[0] ?? INSTRUCTOR_MOCK_NAME,
           imageUrl: item.imageUrl ?? imgYoga1,
         }),
       )
@@ -206,13 +207,17 @@ export async function fetchInstructorSessions(): Promise<InstructorSession[]> {
   }
 }
 
-export async function fetchInstructorSessionById(id: string): Promise<InstructorSession> {
+export async function fetchInstructorSessionById(
+  id: string,
+): Promise<InstructorSession> {
   const sessions = await fetchInstructorSessions()
   const found = sessions.find((s) => s.id === id) ?? instructorSessionsSeed[0]
   return instructorSessionSchema.parse(found)
 }
 
-export async function fetchInstructorMembers(_sessionId: string): Promise<InstructorMember[]> {
+export async function fetchInstructorMembers(
+  _sessionId: string,
+): Promise<InstructorMember[]> {
   await wait()
   try {
     const rows = await apiFetch<
@@ -242,7 +247,8 @@ export async function fetchInstructorMembers(_sessionId: string): Promise<Instru
           id: item.id,
           name: `${item.user.firstName} ${item.user.lastName}`.trim(),
           email: item.user.email,
-          avatarUrl: fallbackMemberAvatars[index % fallbackMemberAvatars.length],
+          avatarUrl:
+            fallbackMemberAvatars[index % fallbackMemberAvatars.length],
           checkInTime: null,
           status:
             item.status === 'attended'
@@ -262,11 +268,15 @@ export async function fetchInstructorMembers(_sessionId: string): Promise<Instru
 
     return merged.map((item) => instructorMemberSchema.parse(item))
   } catch {
-    return memberPlaceholderSeed.map((item) => instructorMemberSchema.parse(item))
+    return memberPlaceholderSeed.map((item) =>
+      instructorMemberSchema.parse(item),
+    )
   }
 }
 
-export async function fetchInstructorWaitlist(sessionId: string): Promise<InstructorWaitlistMember[]> {
+export async function fetchInstructorWaitlist(
+  sessionId: string,
+): Promise<InstructorWaitlistMember[]> {
   await wait()
   try {
     const rows = await apiFetch<
@@ -298,7 +308,8 @@ export async function fetchInstructorWaitlist(sessionId: string): Promise<Instru
           email: row.user.email,
           position: row.standbyPosition ?? index + 1,
           status: 'standby',
-          avatarUrl: fallbackMemberAvatars[index % fallbackMemberAvatars.length],
+          avatarUrl:
+            fallbackMemberAvatars[index % fallbackMemberAvatars.length],
         }),
       )
 

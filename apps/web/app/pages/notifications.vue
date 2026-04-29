@@ -1,103 +1,46 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
+import type { NotificationApiItem } from '~/services/notifications'
 
 definePageMeta({ ssr: false })
 
 type FilterTab = 'all' | 'unread'
-type IconKind = 'promoted' | 'feedback' | 'reminder' | 'gym'
-
-interface NotificationRow {
-  id: string
-  section: 'today' | 'week'
-  title: string
-  body: string
-  icon: IconKind
-  unread: boolean
-}
+type IconKind = 'promoted' | 'feedback' | 'reminder' | 'gym' | 'info'
 
 const filter = ref<FilterTab>('all')
+const unreadOnly = computed(() => filter.value === 'unread')
 
-const rows = ref<NotificationRow[]>([
-  {
-    id: '1',
-    section: 'today',
-    title: 'Standby Promoted 🎉',
-    body: "You're In! A spot opened up! You now have a confirmed booking for Vinyasa Flow on ARP 6 / 13:00–14:00.",
-    icon: 'promoted',
-    unread: true,
-  },
-  {
-    id: '2',
-    section: 'today',
-    title: 'Feedback Request⭐',
-    body: 'How was the session? Great work! How was your experience with Kru Ploy today?',
-    icon: 'feedback',
-    unread: false,
-  },
-  {
-    id: '3',
-    section: 'today',
-    title: 'Reminder ⏰',
-    body: 'See you soon! Your YOGA Express starts in 1 hour at Wellness Center A ( Room 4 ). Ready?',
-    icon: 'reminder',
-    unread: false,
-  },
-  {
-    id: '4',
-    section: 'today',
-    title: 'Miss your GYM glow? ✨',
-    body: "It's been 2 days since your last activity. Come find your energy today. we're ready for you!",
-    icon: 'gym',
-    unread: false,
-  },
-  {
-    id: '5',
-    section: 'week',
-    title: 'Reminder ⏰',
-    body: 'You have YOGA Express tomorrow at 12:15–13:00. Looking forward to seeing you there!',
-    icon: 'reminder',
-    unread: false,
-  },
-  {
-    id: '6',
-    section: 'week',
-    title: 'Feedback Request⭐',
-    body: 'How was the session? Great work! How was your experience with Kru Pim today?',
-    icon: 'feedback',
-    unread: false,
-  },
-  {
-    id: '7',
-    section: 'week',
-    title: 'Reminder ⏰',
-    body: 'See you soon! Your Vinyasa Flow starts in 1 hour at Wellness Center A ( Room 6 ). Ready?',
-    icon: 'reminder',
-    unread: false,
-  },
-  {
-    id: '8',
-    section: 'week',
-    title: 'Standby Promoted🎉',
-    body: "You're In! A spot opened up! You now have a confirmed booking for YOGA Flow on ARP 1 / 13:00–14:00.",
-    icon: 'promoted',
-    unread: false,
-  },
-])
+const { data, isPending, markAllRead, markOneRead } =
+  useNotificationsList(unreadOnly)
 
-const visibleRows = computed(() => {
-  const list = rows.value
-  if (filter.value === 'all') return list
-  return list.filter((r) => r.unread)
-})
+const router = useRouter()
 
-const sections = computed(() => {
-  const today = visibleRows.value.filter((r) => r.section === 'today')
-  const week = visibleRows.value.filter((r) => r.section === 'week')
-  return [
-    { key: 'today' as const, label: 'Today', items: today },
-    { key: 'week' as const, label: 'This Week', items: week },
-  ].filter((s) => s.items.length > 0)
-})
+function sectionForCreatedAt(createdAt: string): 'today' | 'week' {
+  const date = new Date(createdAt)
+  const startToday = new Date()
+  startToday.setHours(0, 0, 0, 0)
+  const endToday = new Date(startToday)
+  endToday.setHours(23, 59, 59, 999)
+  if (date >= startToday && date <= endToday) return 'today'
+  return 'week'
+}
+
+function iconForType(type: string): IconKind {
+  switch (type) {
+    case 'standby_promoted':
+    case 'spot_opened':
+      return 'promoted'
+    case 'feedback_request':
+      return 'feedback'
+    case 'reminder':
+      return 'reminder'
+    case 'no_show_tagged':
+    case 'absence_warning':
+      return 'info'
+    default:
+      return 'info'
+  }
+}
 
 function iconBg(kind: IconKind) {
   switch (kind) {
@@ -120,18 +63,49 @@ function iconName(kind: IconKind) {
       return 'ph:timer'
     case 'gym':
       return 'ph:hand-waving'
+    case 'info':
+      return 'ph:info'
     default:
       return 'ph:bell'
   }
 }
 
-function markAllRead() {
-  rows.value = rows.value.map((r) => ({ ...r, unread: false }))
+const sections = computed(() => {
+  const list = data.value ?? []
+  const today = list.filter((r) => sectionForCreatedAt(r.createdAt) === 'today')
+  const week = list.filter((r) => sectionForCreatedAt(r.createdAt) === 'week')
+  return [
+    { key: 'today' as const, label: 'Today', items: today },
+    { key: 'week' as const, label: 'This Week', items: week },
+  ].filter((s) => s.items.length > 0)
+})
+
+async function handleMarkAllRead() {
+  await markAllRead()
 }
+
+async function handleRowClick(item: NotificationApiItem) {
+  const sessionId = item.sessionId ?? item.metadata?.sessionId
+  if (!sessionId) return
+
+  if (!item.isRead) {
+    try {
+      await markOneRead(item.id)
+    } catch {
+      /* ignore */
+    }
+  }
+  await router.push(`/class/${sessionId}`)
+}
+
+const rowCursorClass = (item: NotificationApiItem) =>
+  item.sessionId || item.metadata?.sessionId
+    ? 'cursor-pointer active:bg-black/[0.02]'
+    : ''
 </script>
 
 <template>
-  <LayoutAppShell content-max-width="" class="overflow-hidden -m-5">
+  <LayoutAppShell content-max-width="" class="-m-5 overflow-hidden">
     <section class="rounded-[12px] bg-white px-3 pb-8 pt-1 md:px-4">
       <Motion
         :initial="{ opacity: 0, y: 10 }"
@@ -153,7 +127,7 @@ function markAllRead() {
         <button
           type="button"
           class="absolute right-0 top-1/2 -translate-y-1/2 text-[12px] font-medium text-black underline decoration-solid underline-offset-2"
-          @click="markAllRead"
+          @click="handleMarkAllRead"
         >
           Mark all read
         </button>
@@ -193,14 +167,20 @@ function markAllRead() {
 
       <div class="mb-3 h-px w-full bg-black/10" />
 
-      <div
-        v-if="sections.length === 0"
-        class="px-1 py-12 text-center text-sm text-[var(--bw-subtle)]"
-      >
-        No notifications yet.
+      <div v-if="isPending" class="space-y-4 px-1 py-8">
+        <div class="h-16 animate-pulse rounded-xl bg-black/[0.06]" />
+        <div class="h-16 animate-pulse rounded-xl bg-black/[0.06]" />
+        <div class="h-16 animate-pulse rounded-xl bg-black/[0.06]" />
       </div>
 
-      <div v-for="(block, bi) in sections" :key="block.key" class="mb-6">
+      <template v-else-if="sections.length === 0">
+        <div class="px-1 py-12 text-center text-sm text-[var(--bw-subtle)]">
+          No notifications yet.
+        </div>
+      </template>
+
+      <template v-else>
+        <div v-for="(block, bi) in sections" :key="block.key" class="mb-6">
         <p class="mb-3 text-[14px] font-medium text-black">{{ block.label }}</p>
         <ul class="divide-y divide-black/10">
           <li
@@ -213,19 +193,27 @@ function markAllRead() {
               :animate="{ opacity: 1, y: 0 }"
               :transition="{ duration: 0.22, delay: bi * 0.06 + index * 0.03 }"
               class="flex gap-3 py-4"
+              :class="rowCursorClass(item)"
+              role="button"
+              tabindex="0"
+              @click="handleRowClick(item)"
+              @keydown.enter.prevent="handleRowClick(item)"
             >
               <div class="flex w-[18px] shrink-0 flex-col items-center pt-2">
                 <span
-                  v-if="item.unread"
+                  v-if="!item.isRead"
                   class="h-2 w-2 shrink-0 rounded-full bg-[#ef4444]"
                   aria-hidden="true"
                 />
               </div>
               <div
                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[18px] p-1"
-                :class="iconBg(item.icon)"
+                :class="iconBg(iconForType(item.type))"
               >
-                <Icon :name="iconName(item.icon)" class="h-7 w-7 text-white" />
+                <Icon
+                  :name="iconName(iconForType(item.type))"
+                  class="h-7 w-7 text-white"
+                />
               </div>
               <div class="min-w-0 flex-1 pt-0.5">
                 <p class="text-[14px] font-medium leading-snug text-black">
@@ -241,6 +229,7 @@ function markAllRead() {
           </li>
         </ul>
       </div>
+      </template>
     </section>
   </LayoutAppShell>
 </template>

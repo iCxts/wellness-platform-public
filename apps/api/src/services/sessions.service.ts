@@ -5,6 +5,38 @@ import type { BookingWithUserResponse, CreateSessionInput, SessionFocus, Session
 import { enqueueNoShowTagger } from "../jobs/no-show-tagger.job.js";
 import { enqueueReminders } from "../jobs/reminder.job.js";
 
+/**
+ * Snap schedule times onto the local calendar day of `anchorDay` while preserving clock times from `inputStartsAt` / `inputEndsAt`.
+ * Uses the session's intended start date (create: from payload; update: existing row) so listing/check-in see a consistent calendar day.
+ */
+function alignSessionScheduleToAnchorDay(anchor: Date, inputStartsAt: Date, inputEndsAt: Date): { startsAt: Date; endsAt: Date } {
+    const y = anchor.getFullYear();
+    const m = anchor.getMonth();
+    const d = anchor.getDate();
+    const startsAt = new Date(
+        y,
+        m,
+        d,
+        inputStartsAt.getHours(),
+        inputStartsAt.getMinutes(),
+        inputStartsAt.getSeconds(),
+        inputStartsAt.getMilliseconds(),
+    );
+    let endsAt = new Date(
+        y,
+        m,
+        d,
+        inputEndsAt.getHours(),
+        inputEndsAt.getMinutes(),
+        inputEndsAt.getSeconds(),
+        inputEndsAt.getMilliseconds(),
+    );
+    if (endsAt.getTime() <= startsAt.getTime()) {
+        endsAt = new Date(endsAt.getTime() + 24 * 60 * 60 * 1000);
+    }
+    return { startsAt, endsAt };
+}
+
 async function getSpotCounts(sessionIds: string[]): Promise<Record<string, number>> {
     if (sessionIds.length === 0) return {};
     const rows = await db
@@ -90,6 +122,10 @@ export async function getSession(id: string): Promise<SessionResponse | null> {
 }
 
 export async function createSession(input: CreateSessionInput): Promise<SessionResponse> {
+    const rawStart = new Date(input.startsAt);
+    const rawEnd = new Date(input.endsAt);
+    const { startsAt, endsAt } = alignSessionScheduleToAnchorDay(rawStart, rawStart, rawEnd);
+
     const [s] = await db
         .insert(sessions)
         .values({
@@ -102,13 +138,14 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
             placeDescription: input.placeDescription ?? null,
             trainerId: input.trainerId ?? null,
             zoneId: input.zoneId,
-            startsAt: new Date(input.startsAt),
-            endsAt: new Date(input.endsAt),
+            startsAt,
+            endsAt,
             capacity: input.capacity,
-        }).returning();
+        })
+        .returning();
 
-    await enqueueNoShowTagger(s.id, new Date(input.endsAt));
-    await enqueueReminders(s.id, input.title, new Date(input.startsAt));
+    await enqueueNoShowTagger(s.id, endsAt);
+    await enqueueReminders(s.id, input.title, startsAt);
 
     return {
         id: s.id,
@@ -130,6 +167,9 @@ export async function createSession(input: CreateSessionInput): Promise<SessionR
 }
 
 export async function updateSession(id: string, input: Partial<CreateSessionInput>): Promise<SessionResponse | null> {
+    const [existing] = await db.select().from(sessions).where(eq(sessions.id, id));
+    if (!existing) return null;
+
     const values: Record<string, unknown> = {};
     if (input.title !== undefined) values.title = input.title;
     if (input.type !== undefined) values.type = input.type;
@@ -140,9 +180,16 @@ export async function updateSession(id: string, input: Partial<CreateSessionInpu
     if (input.placeDescription !== undefined) values.placeDescription = input.placeDescription;
     if (input.trainerId !== undefined) values.trainerId = input.trainerId;
     if (input.zoneId !== undefined) values.zoneId = input.zoneId;
-    if (input.startsAt !== undefined) values.startsAt = new Date(input.startsAt);
-    if (input.endsAt !== undefined) values.endsAt = new Date(input.endsAt);
     if (input.capacity !== undefined) values.capacity = input.capacity;
+
+    if (input.startsAt !== undefined || input.endsAt !== undefined) {
+        const anchor = existing.startsAt;
+        const startSrc = input.startsAt !== undefined ? new Date(input.startsAt) : existing.startsAt;
+        const endSrc = input.endsAt !== undefined ? new Date(input.endsAt) : existing.endsAt;
+        const aligned = alignSessionScheduleToAnchorDay(anchor, startSrc, endSrc);
+        values.startsAt = aligned.startsAt;
+        values.endsAt = aligned.endsAt;
+    }
 
     const [s] = await db
         .update(sessions)

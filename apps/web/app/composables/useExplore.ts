@@ -18,4 +18,5 @@ export const useClassDetail = (id: Ref<string>) =>
   useQuery({
     queryKey: computed(() => exploreQueryKeys.classDetail(id.value)),
     queryFn: () => fetchClassById(id.value),
+    staleTime: 0,
   })

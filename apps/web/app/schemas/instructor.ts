@@ -16,4 +16,6 @@ export const instructorWaitlistMemberSchema = z.object({
   status: z.literal('standby'),
 })
 
-export type InstructorWaitlistMember = z.infer<typeof instructorWaitlistMemberSchema>
+export type InstructorWaitlistMember = z.infer<
+  typeof instructorWaitlistMemberSchema
+>

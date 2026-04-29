@@ -1,3 +1,11 @@
+/** Local calendar date as `YYYY-MM-DD` (not UTC midnight shifted). */
+export function localDateISO(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export interface AdminCreateClassDraft {
   category: string
   title: string
@@ -22,7 +30,7 @@ const defaultDraft = (): AdminCreateClassDraft => ({
   title: 'YOGA Flow',
   description:
     'Undo the damage of your desk chair. A 45-minute flow targeting neck, shoulder, and back tension to leave you feeling taller, realigned, and recharged.',
-  dateISO: '2026-05-05',
+  dateISO: localDateISO(),
   startTime: '12:15',
   endTime: '13:00',
   zone: 'Wellness Center A',

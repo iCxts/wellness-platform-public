@@ -3,6 +3,7 @@ import { bookings, sessions, users, zones } from "@wellness/db";
 import type { BookingResponse, BookingWithSessionResponse, BookingDetailResponse, AdminBookingResponse, BookingQrResponse } from "@wellness/types";
 import { eq, and, count, asc, desc, lt, gte, gt, inArray } from "drizzle-orm";
 import { enqueueStandbyPromotion } from "../jobs/standby-promotion.job.js";
+import { createNotification } from "./notifications.service.js";
 import { SignJWT } from "jose";
 import { env } from "../env.js";
 
@@ -78,6 +79,30 @@ export async function createBooking(userId: string, sessionId: string): Promise<
     return toResponse(booking);
 };
 
+async function notifyStandbyQueueSpotOpened(sessionId: string): Promise<void> {
+    const [sessionRow] = await db
+        .select({ title: sessions.title })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId));
+    if (!sessionRow) return;
+
+    const queued = await db
+        .select({ userId: bookings.userId })
+        .from(bookings)
+        .where(and(eq(bookings.sessionId, sessionId), eq(bookings.status, "standby")))
+        .orderBy(asc(bookings.standbyPosition));
+
+    /** Next in line gets `standby_promoted` from `processStandbyPromotion` — skip here to avoid duplicate pushes. */
+    const notifyRows = queued.slice(1);
+
+    const title = "A spot opened up";
+    const body = `Someone canceled "${sessionRow.title}". Tap to view the class and book if a spot is available.`;
+
+    for (const row of notifyRows) {
+        await createNotification(row.userId, "spot_opened", title, body, { sessionId }, sessionId);
+    }
+}
+
 export async function cancelBooking(userId: string, bookingId: string): Promise<void> {
     const [booking] = await db
         .select()
@@ -93,6 +118,7 @@ export async function cancelBooking(userId: string, bookingId: string): Promise<
         .where(eq(bookings.id, booking.id));
 
     if (booking.status === "confirmed") {
+        await notifyStandbyQueueSpotOpened(booking.sessionId);
         await enqueueStandbyPromotion(booking.sessionId);
     }
 };

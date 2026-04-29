@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Motion } from 'motion-v'
+import { localDateISO } from '~/composables/useAdminCreateClassDraft'
 
 definePageMeta({ ssr: false })
 
@@ -16,15 +17,31 @@ const zonesToRender = computed(() =>
   zones.value.length > 0 ? zones.value : fallbackZones,
 )
 
-const days = [
-  { label: 'Sun', day: 5 },
-  { label: 'Mon', day: 6 },
-  { label: 'Tue', day: 7 },
-  { label: 'Wed', day: 8 },
-  { label: 'Thu', day: 9 },
-  { label: 'Fri', day: 10 },
-]
-const selectedDay = ref(days[0]?.day ?? 5)
+const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Six consecutive days starting today (local). */
+const dayPickerDays = computed(() => {
+  const base = new Date()
+  base.setHours(0, 0, 0, 0)
+  const out: { label: string; dayOfMonth: number; dateISO: string }[] = []
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(base)
+    d.setDate(base.getDate() + i)
+    out.push({
+      label: weekdayLabels[d.getDay()] ?? '',
+      dayOfMonth: d.getDate(),
+      dateISO: localDateISO(d),
+    })
+  }
+  return out
+})
+
+const monthHeading = computed(() => {
+  const [y, m, day] = draft.value.dateISO.split('-').map(Number)
+  if (!y || !m || !day) return ''
+  const dt = new Date(y, m - 1, day)
+  return dt.toLocaleString('en-US', { month: 'long' }).toUpperCase()
+})
 
 const rooms = ['Room 1', 'Room 2', 'Room 3', 'Room 4', 'Room 5']
 
@@ -39,9 +56,8 @@ const selectZone = (zone: { id: string; name: string }) => {
   draft.value.zone = zone.name
 }
 
-const selectDay = (day: number) => {
-  selectedDay.value = day
-  draft.value.dateISO = `2026-05-${String(day).padStart(2, '0')}`
+function selectDate(dateISO: string) {
+  draft.value.dateISO = dateISO
 }
 
 watchEffect(() => {
@@ -52,12 +68,12 @@ watchEffect(() => {
   draft.value.zone = firstZone.name
 })
 
+/** Keep selected date on the visible strip (e.g. after stale draft from a prior visit). */
 watchEffect(() => {
-  const iso = draft.value.dateISO
-  if (!iso.startsWith('2026-05-')) return
-  const parsedDay = Number(iso.slice(-2))
-  if (days.some((d) => d.day === parsedDay)) {
-    selectedDay.value = parsedDay
+  const allowed = dayPickerDays.value.map((x) => x.dateISO)
+  if (allowed.length === 0) return
+  if (!allowed.includes(draft.value.dateISO)) {
+    draft.value.dateISO = allowed[0] ?? draft.value.dateISO
   }
 })
 </script>
@@ -86,22 +102,22 @@ watchEffect(() => {
         </div>
 
         <div class="rounded-xl bg-white p-4">
-          <p class="text-center text-xl font-medium">MAY</p>
+          <p class="text-center text-xl font-medium">{{ monthHeading }}</p>
           <div class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
             <button
-              v-for="item in days"
-              :key="item.day"
+              v-for="item in dayPickerDays"
+              :key="item.dateISO"
               type="button"
               class="rounded-2xl border px-3 py-3 text-center"
               :class="
-                selectedDay === item.day
+                draft.dateISO === item.dateISO
                   ? 'border-[#040036] bg-[#040036] text-white'
                   : 'border-[#040036] text-[#040036]'
               "
-              @click="selectDay(item.day)"
+              @click="selectDate(item.dateISO)"
             >
               <p class="text-sm">{{ item.label }}</p>
-              <p class="text-3xl font-semibold">{{ item.day }}</p>
+              <p class="text-3xl font-semibold">{{ item.dayOfMonth }}</p>
             </button>
           </div>
         </div>
