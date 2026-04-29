@@ -23,8 +23,12 @@ const dateLabel = `Today ${today.getDate()} ${today.toLocaleString('en-US', { mo
         <p class="text-xs text-[var(--bw-subtle)]">{{ dateLabel }}</p>
       </div>
     </div>
-    <button class="grid h-10 w-10 place-items-center rounded-full text-[var(--bw-ink)]">
+    <NuxtLink
+      to="/notifications"
+      class="grid h-10 w-10 place-items-center rounded-full text-[var(--bw-ink)]"
+      aria-label="Notifications"
+    >
       <Icon name="ph:bell" class="h-6 w-6" />
-    </button>
+    </NuxtLink>
   </header>
 </template>

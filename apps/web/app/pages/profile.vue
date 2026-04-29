@@ -63,13 +63,13 @@ const closeLogoutSheet = () => {
             </button>
             <div v-else class="h-8 w-8" />
             <h1 class="text-base font-medium text-black">PROFILE</h1>
-            <button
-              type="button"
+            <NuxtLink
+              to="/notifications"
               class="grid h-8 w-8 place-items-center rounded-full text-black/90 transition-colors hover:bg-black/10"
               aria-label="Notifications"
             >
               <Icon name="ph:bell" class="h-6 w-6" />
-            </button>
+            </NuxtLink>
           </header>
 
           <div class="mt-8 flex flex-col items-center">
